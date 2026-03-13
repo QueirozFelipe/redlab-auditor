@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RedLab Audit Report - {reportData.targetVersion}</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root { --primary-color: #2c3e50; --secondary-color: #34495e; --bg-color: #f4f7f6; --text-color: #333; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 0; padding: 2rem; background-color: var(--bg-color); color: var(--text-color); }
+        h1, h2 { color: var(--primary-color); border-bottom: 2px solid #ddd; padding-bottom: 0.5rem; }
+
+        .dashboard-cards { display: flex; gap: 1rem; margin-bottom: 2rem; }
+        .card { background: white; padding: 1.5rem; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); flex: 1; text-align: center; border-top: 4px solid #3498db; }
+        .card.warning { border-top-color: #e74c3c; }
+        .card h3 { margin: 0; font-size: 2.5rem; color: var(--primary-color); }
+        .card p { margin: 0.5rem 0 0; color: #7f8c8d; text-transform: uppercase; font-size: 0.85rem; letter-spacing: 1px; }
+
+        .chart-container { background: white; padding: 1.5rem; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 2rem; max-width: 1000px; }
+
+        table { width: 100%; border-collapse: collapse; margin-bottom: 2rem; background: white; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border-radius: 8px; overflow: hidden; }
+        th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #eee; }
+        th { background-color: var(--primary-color); color: white; font-weight: 500; }
+        tr:hover { background-color: #f9f9f9; }
+        a { color: #3498db; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+
+        .status-OK { color: #27ae60; font-weight: bold; }
+        .status-PROBLEM { color: #e74c3c; font-weight: bold; }
+        .status-WARNING { color: #f39c12; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<h1>RedLab Audit Report</h1>
+<p>Validation results for release version: <strong>{reportData.targetVersion}</strong></p>
+
+<div class="dashboard-cards">
+    <div class="card">
+        <h3>{reportData.items.size}</h3>
+        <p>Total Tasks Audited</p>
+    </div>
+    <div class="card warning">
+        <h3>{reportData.orphanCommits.size}</h3>
+        <p>Orphan Commits Detected</p>
+    </div>
+</div>
+
+<div class="chart-container">
+    <h2>Commits per Task</h2>
+    <canvas id="tasksChart"></canvas>
+</div>
+
+<h2>Task Status Map</h2>
+<table>
+    <thead>
+    <tr>
+        <th>Task ID</th>
+        <th>Title</th>
+        <th>Assignee</th>
+        <th>Redmine Status</th>
+        <th>Found Commits</th>
+        <th>Audit Status</th>
+        <th>System Observation</th>
+    </tr>
+    </thead>
+    <tbody>
+    {#for item in reportData.items}
+    <tr>
+        <td><a href="{item.task.url}" target="_blank">#{item.task.id}</a></td>
+        <td>{item.task.title}</td>
+        <td>{item.task.assignee}</td>
+        <td>{item.task.status}</td>
+        <td style="text-align: center;">{item.foundCommits.size}</td>
+        <td class="status-{item.status}">{item.status}</td>
+        <td>{item.observation}</td>
+    </tr>
+    {/for}
+    </tbody>
+</table>
+
+<h2>Orphan Commits</h2>
+<p><em>Commits found in the update branch that are not linked to any task from the target release.</em></p>
+<table>
+    <thead>
+    <tr>
+        <th>Commit Hash</th>
+        <th>Author</th>
+        <th>Commit Message</th>
+        <th>Repository Link</th>
+    </tr>
+    </thead>
+    <tbody>
+    {#if reportData.orphanCommits.isEmpty}
+    <tr>
+        <td colspan="4" style="text-align: center; color: #27ae60;">No orphan commits found. Excellent!</td>
+    </tr>
+    {#else}
+    {#for commit in reportData.orphanCommits}
+    <tr>
+        <td style="font-family: monospace;">{commit.hash.substring(0,8)}</td>
+        <td>{commit.author}</td>
+        <td>{commit.message}</td>
+        <td><a href="{commit.url}" target="_blank">View details</a></td>
+    </tr>
+    {/for}
+    {/if}
+    </tbody>
+</table>
+
+<script>
+    const chartLabels = [];
+    const chartData = [];
+
+    {#for item in reportData.items}
+        chartLabels.push('Task #{item.task.id}');
+        chartData.push({item.foundCommits.size});
+    {/for}
+
+    const ctx = document.getElementById('tasksChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: chartLabels,
+            datasets: [{
+                label: 'Associated Commits',
+                data: chartData,
+                backgroundColor: '#3498db',
+                borderColor: '#2980b9',
+                borderWidth: 1,
+                borderRadius: 4
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: { stepSize: 1 }
+                }
+            }
+        }
+    });
+</script>
+
+</body>
+</html>

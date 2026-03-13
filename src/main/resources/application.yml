@@ -1,0 +1,15 @@
+redlab-auditor:
+  redmine:
+    url: "https://redmine.suaempresa.com.br"
+    api-key: "${REDMINE_API_KEY:}"
+
+  gitlab:
+    url: "https://gitlab.suaempresa.com.br"
+    personal-access-token: "${GITLAB_TOKEN:}"
+    group-id: "123"
+
+quarkus:
+  log:
+    level: INFO
+    console:
+      format: "%d{yyyy-MM-dd HH:mm:ss,SSS} %-5p [%c{3.}] (%t) %s%e%n"

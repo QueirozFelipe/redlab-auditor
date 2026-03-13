@@ -1,0 +1,18 @@
+package com.redlab.auditor.usecase.port.out;
+
+import com.redlab.auditor.domain.model.Commit;
+
+import java.util.List;
+
+public interface SourceControlPort {
+    /**
+     * Retrieves all commits made after the latest tag on the production branch,
+     * iterating across all projects within a repository group.
+     *
+     * @param productionBranch The branch containing the reference tag used as the starting point for the commit search.
+     * @param targetBranch The branch intended to be merged into the production branch,
+     *                     which will be scanned for new commits.
+     * @return A consolidated list of {@link Commit} objects from all projects within the group.
+     */
+    List<Commit> fetchCommitsSinceLastTag(String productionBranch, String targetBranch);
+}
