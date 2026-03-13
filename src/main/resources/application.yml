@@ -1,13 +1,3 @@
-redlab-auditor:
-  redmine:
-    url: "https://redmine.suaempresa.com.br"
-    api-key: "${REDMINE_API_KEY:}"
-
-  gitlab:
-    url: "https://gitlab.suaempresa.com.br"
-    personal-access-token: "${GITLAB_TOKEN:}"
-    group-id: "123"
-
 quarkus:
   log:
     level: INFO

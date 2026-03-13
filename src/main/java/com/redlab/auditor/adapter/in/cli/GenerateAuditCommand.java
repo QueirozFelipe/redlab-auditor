@@ -1,42 +1,52 @@
 package com.redlab.auditor.adapter.in.cli;
 
+import com.redlab.auditor.infrastructure.security.ProfileStorageService;
 import com.redlab.auditor.usecase.port.in.AuditCommandPort;
 import jakarta.inject.Inject;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
-@Command(name = "redlab", mixinStandardHelpOptions = true, version = "1.0.0",
-        description = "Executes a cross-reference audit between Redmine tasks and GitLab commits.")
-public class AuditCLI implements Runnable {
+@Command(name = "audit", description = "Executes a cross-reference audit between Redmine tasks and GitLab commits.")
+public class GenerateAuditCommand implements Runnable {
 
     @Option(names = {"-v", "--version"}, required = true,
-            description = "The target release version in Redmine (e.g., 1.0.0).")
+            description = "The target version code in Redmine")
     String version;
 
-    @Option(names = {"-p", "--production-branch"}, required = true,
-            description = "The production branch containing the reference tag (e.g., main or master).")
-    String productionBranch;
+    @Option(names = {"-p", "--profile"}, description = "Profile name to be used.")
+    String profileName;
 
-    @Option(names = {"-t", "--target-branch"}, required = true,
-            description = "The target branch containing the new commits to be audited (e.g., dev or pre-update).")
+    @Option(names = {"-t", "--target"}, description = "Overrides the target branch from profile.")
     String targetBranch;
 
     @Inject
     AuditCommandPort auditCommandPort;
 
+    @Inject
+    ProfileStorageService storageService;
+
     @Override
     public void run() {
+        var profiles = storageService.loadProfiles();
+        var profile = profiles.get(profileName);
+
+        if (profile == null) {
+            System.err.println("[ERROR] Profile '" + profileName + "' not found.");
+            return;
+        }
+
+        String effectiveTarget = (targetBranch != null && !targetBranch.isBlank()) ? targetBranch : profile.mainTargetBranch();
+
         System.out.println("==================================================");
         System.out.println("              RedLab Auditor v1.0.0               ");
         System.out.println("==================================================");
         System.out.println("[*] Initializing audit process...");
-        System.out.println("    -> Target Version: " + version);
-        System.out.println("    -> Production Branch: " + productionBranch);
-        System.out.println("    -> Target Branch: " + targetBranch);
+        System.out.println("    -> Profile: " + profileName);
+        System.out.println("    -> Target Branch: " + effectiveTarget);
         System.out.println("--------------------------------------------------");
 
         try {
-            auditCommandPort.execute(version, productionBranch, targetBranch);
+            auditCommandPort.execute(version, profileName, effectiveTarget);
 
             System.out.println("--------------------------------------------------");
             System.out.println("[SUCCESS] Audit completed without critical system errors.");

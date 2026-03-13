@@ -1,6 +1,7 @@
 package com.redlab.auditor.adapter.out.template;
 
 import com.redlab.auditor.domain.model.AuditReport;
+import com.redlab.auditor.infrastructure.util.StorageUtils;
 import com.redlab.auditor.usecase.port.out.ReportGeneratorPort;
 import io.quarkus.qute.Template;
 import io.quarkus.qute.TemplateInstance;
@@ -30,7 +31,7 @@ public class QuteReportAdapter implements ReportGeneratorPort {
 
         try {
             String fileName = "redlab-audit-v" + auditReport.targetVersion() + ".html";
-            Path outputPath = Paths.get(fileName);
+            Path outputPath = StorageUtils.getReportsPath().resolve(fileName);
             Files.writeString(outputPath, htmlContent);
 
             System.out.println("[\u2713] Audit Report successfully generated at: " + outputPath.toAbsolutePath());

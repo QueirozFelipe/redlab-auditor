@@ -1,6 +1,7 @@
 package com.redlab.auditor.usecase;
 
 import com.redlab.auditor.domain.model.*;
+import com.redlab.auditor.infrastructure.security.ProfileStorageService;
 import com.redlab.auditor.usecase.port.in.AuditCommandPort;
 import com.redlab.auditor.usecase.port.out.ProjectManagerPort;
 import com.redlab.auditor.usecase.port.out.ReportGeneratorPort;
@@ -9,6 +10,7 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -18,25 +20,31 @@ public class GenerateAuditReportUseCase implements AuditCommandPort {
     private final ProjectManagerPort projectManagerPort;
     private final SourceControlPort sourceControlPort;
     private final ReportGeneratorPort reportGeneratorPort;
+    private final ProfileStorageService profileStorageService;
 
     @Inject
     public GenerateAuditReportUseCase(
             ProjectManagerPort projectManagerPort,
             SourceControlPort sourceControlPort,
-            ReportGeneratorPort reportGeneratorPort) {
+            ReportGeneratorPort reportGeneratorPort,
+            ProfileStorageService profileStorageService) {
         this.projectManagerPort = projectManagerPort;
         this.sourceControlPort = sourceControlPort;
         this.reportGeneratorPort = reportGeneratorPort;
+        this.profileStorageService = profileStorageService;
     }
 
     @Override
-    public AuditReport execute(String version, String productionBranch, String targetBranch) {
-        List<Task> tasks = projectManagerPort.fetchTasksByVersion(version);
+    public AuditReport execute(String version, String profileName, String targetBranch) {
+        Profile profile = profileStorageService.loadProfiles().get(profileName);
+        if (profile == null) throw new RuntimeException("Profile not found: " + profileName);
+
+        List<Task> tasks = projectManagerPort.fetchTasksByVersion(profile, version);
         Set<String> validTaskIds = tasks.stream()
                 .map(Task::id)
                 .collect(Collectors.toSet());
 
-        List<Commit> commits = sourceControlPort.fetchCommitsSinceLastTag(productionBranch, targetBranch);
+        List<Commit> commits = sourceControlPort.fetchCommitsSinceLastTag(profile, targetBranch);
 
         List<AuditReportItem> reportItems = tasks.stream().map(task -> {
             List<Commit> relatedCommits = commits.stream()
