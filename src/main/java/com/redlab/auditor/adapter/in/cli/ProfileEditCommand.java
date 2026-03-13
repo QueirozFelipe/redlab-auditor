@@ -1,4 +1,4 @@
 package com.redlab.auditor.adapter.in.cli;
 
-public class AuditCLI {
+public class ProfileEditCommand {
 }
