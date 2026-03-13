@@ -1,9 +1,9 @@
 package com.redlab.auditor.adapter.in.cli;
 
-import com.redlab.auditor.usecase.GenerateAuditReportUseCase;
+import com.redlab.auditor.usecase.port.in.AuditCommandPort;
+import jakarta.inject.Inject;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
-import jakarta.inject.Inject;
 
 @Command(name = "redlab", mixinStandardHelpOptions = true, version = "1.0.0",
         description = "Executes a cross-reference audit between Redmine tasks and GitLab commits.")
@@ -22,7 +22,7 @@ public class AuditCLI implements Runnable {
     String targetBranch;
 
     @Inject
-    GenerateAuditReportUseCase useCase;
+    AuditCommandPort auditCommandPort;
 
     @Override
     public void run() {
@@ -36,7 +36,7 @@ public class AuditCLI implements Runnable {
         System.out.println("--------------------------------------------------");
 
         try {
-            useCase.execute(version, productionBranch, targetBranch);
+            auditCommandPort.execute(version, productionBranch, targetBranch);
 
             System.out.println("--------------------------------------------------");
             System.out.println("[SUCCESS] Audit completed without critical system errors.");

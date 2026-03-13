@@ -1,6 +1,7 @@
 package com.redlab.auditor.usecase;
 
 import com.redlab.auditor.domain.model.*;
+import com.redlab.auditor.usecase.port.in.AuditCommandPort;
 import com.redlab.auditor.usecase.port.out.ProjectManagerPort;
 import com.redlab.auditor.usecase.port.out.ReportGeneratorPort;
 import com.redlab.auditor.usecase.port.out.SourceControlPort;
@@ -12,7 +13,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 @ApplicationScoped
-public class GenerateAuditReportUseCase {
+public class GenerateAuditReportUseCase implements AuditCommandPort {
 
     private final ProjectManagerPort projectManagerPort;
     private final SourceControlPort sourceControlPort;
@@ -28,6 +29,7 @@ public class GenerateAuditReportUseCase {
         this.reportGeneratorPort = reportGeneratorPort;
     }
 
+    @Override
     public AuditReport execute(String version, String productionBranch, String targetBranch) {
         List<Task> tasks = projectManagerPort.fetchTasksByVersion(version);
         Set<String> validTaskIds = tasks.stream()
