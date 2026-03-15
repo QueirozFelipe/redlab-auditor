@@ -6,6 +6,7 @@ import com.redlab.auditor.usecase.port.in.AuditCommandPort;
 import com.redlab.auditor.usecase.port.out.ProjectManagerPort;
 import com.redlab.auditor.usecase.port.out.ReportGeneratorPort;
 import com.redlab.auditor.usecase.port.out.SourceControlPort;
+import com.redlab.auditor.usecase.port.out.SourceControlResult;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
@@ -40,11 +41,16 @@ public class GenerateAuditReportUseCase implements AuditCommandPort {
         if (profile == null) throw new RuntimeException("Profile not found: " + profileName);
 
         List<Task> tasks = projectManagerPort.fetchTasksByVersion(profile, version);
-        Set<String> validTaskIds = tasks.stream()
-                .map(Task::id)
-                .collect(Collectors.toSet());
+        Set<String> validTaskIds = tasks.stream().map(Task::id).collect(Collectors.toSet());
 
-        List<Commit> commits = sourceControlPort.fetchCommitsSinceLastTag(profile, targetBranch);
+        Map<String, Long> tasksPerAssignee = tasks.stream()
+                .collect(Collectors.groupingBy(Task::assignee, Collectors.counting()));
+
+        SourceControlResult scResult = sourceControlPort.fetchCommitsSinceLastTag(profile, targetBranch);
+        List<Commit> commits = scResult.commits();
+
+        Map<String, Long> commitsPerAuthor = commits.stream()
+                .collect(Collectors.groupingBy(Commit::author, Collectors.counting()));
 
         List<AuditReportItem> reportItems = tasks.stream().map(task -> {
             List<Commit> relatedCommits = commits.stream()
@@ -61,7 +67,22 @@ public class GenerateAuditReportUseCase implements AuditCommandPort {
                 .filter(commit -> commit.associatedTaskIds().stream().noneMatch(validTaskIds::contains))
                 .toList();
 
-        AuditReport report = new AuditReport(version, reportItems, orphanCommits);
+        long tasksWithCommitCount = reportItems.stream().filter(item -> !item.foundCommits().isEmpty()).count();
+        long tasksMissingCommitCount = reportItems.size() - tasksWithCommitCount;
+        long totalLinkedCommits = commits.size() - orphanCommits.size();
+
+        AuditReport report = new AuditReport(
+                version,
+                reportItems,
+                orphanCommits,
+                scResult.activeProjects(),
+                scResult.ignoredProjects(),
+                totalLinkedCommits,
+                tasksWithCommitCount,
+                tasksMissingCommitCount,
+                commitsPerAuthor,
+                tasksPerAssignee
+        );
 
         reportGeneratorPort.generateHtmlReport(report);
 
@@ -69,13 +90,7 @@ public class GenerateAuditReportUseCase implements AuditCommandPort {
     }
 
     private AuditStatus determineStatus(Task task, List<Commit> relatedCommits) {
-        if (relatedCommits.isEmpty()) {
-            return AuditStatus.PROBLEM;
-        }
-
-        // Espaço reservado para lógicas futuras de WARNING.
-        // Exemplo: if (!commit.author().equals(task.assignee())) return AuditStatus.WARNING;
-
+        if (relatedCommits.isEmpty()) return AuditStatus.PROBLEM;
         return AuditStatus.OK;
     }
 

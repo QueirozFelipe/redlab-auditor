@@ -8,7 +8,7 @@ import picocli.CommandLine;
 import java.util.Map;
 import java.util.Scanner;
 
-@CommandLine.Command(name = "profile-add", description = "Adds a new configuration profile.")
+@CommandLine.Command(name = "add", description = "Adds a new configuration profile.")
 public class ProfileAddCommand implements Runnable {
 
 			@Inject

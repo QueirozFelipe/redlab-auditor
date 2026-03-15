@@ -15,5 +15,5 @@ public interface SourceControlPort {
      *                         which will be scanned for new commits.
      * @return A consolidated list of {@link Commit} objects from all projects within the group.
      */
-    List<Commit> fetchCommitsSinceLastTag(Profile profile, String targetBranch);
+    SourceControlResult fetchCommitsSinceLastTag(Profile profile, String targetBranch);
 }

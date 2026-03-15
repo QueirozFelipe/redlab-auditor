@@ -3,6 +3,7 @@ package com.redlab.auditor.adapter.out.api;
 import com.redlab.auditor.domain.model.Commit;
 import com.redlab.auditor.domain.model.Profile;
 import com.redlab.auditor.usecase.port.out.SourceControlPort;
+import com.redlab.auditor.usecase.port.out.SourceControlResult;
 import jakarta.enterprise.context.ApplicationScoped;
 import org.gitlab4j.api.GitLabApi;
 import org.gitlab4j.api.GitLabApiException;
@@ -21,41 +22,58 @@ import java.util.stream.Collectors;
 public class GitLabAdapter implements SourceControlPort {
 
     private Semaphore rateLimiter;
+    private record ProjectResult(List<Commit> commits, String projectName, boolean hasTags) {}
+    private static final Pattern IGNORE_COMMIT_PATTERN = Pattern.compile(
+            "^(Merge branch|Merge pull request|See merge request|Merge tag|chore:?\\s*release).*",
+            Pattern.CASE_INSENSITIVE
+    );
 
     @Override
-    public List<Commit> fetchCommitsSinceLastTag(Profile profile, String targetBranch) {
+    public SourceControlResult fetchCommitsSinceLastTag(Profile profile, String targetBranch) {
         GitLabApi gitLabApi = new GitLabApi(profile.gitlabUrl(), profile.gitlabToken());
         this.rateLimiter = new Semaphore(profile.gitlabRateLimit());
 
         try {
             List<Project> projects = gitLabApi.getGroupApi().getProjects(profile.gitlabGroupId());
+
             List<Commit> allCommits = new ArrayList<>();
+            List<String> activeProjects = new ArrayList<>();
+            List<String> ignoredProjects = new ArrayList<>();
 
             try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
 
-                List<Callable<List<Commit>>> tasks = projects.stream()
-                        .map(project -> (Callable<List<Commit>>) () -> processProject(gitLabApi, project, profile, targetBranch))
+                List<Callable<ProjectResult>> tasks = projects.stream()
+                        .map(project -> (Callable<ProjectResult>) () -> processProject(gitLabApi, project, profile, targetBranch))
                         .toList();
 
-                List<Future<List<Commit>>> results = executor.invokeAll(tasks);
+                List<Future<ProjectResult>> results = executor.invokeAll(tasks);
 
-                for (Future<List<Commit>> result : results) {
-                    allCommits.addAll(result.get());
+                for (Future<ProjectResult> resultFuture : results) {
+                    ProjectResult pr = resultFuture.get();
+
+                    // Adiciona os commits (se houver) na lista geral
+                    allCommits.addAll(pr.commits());
+
+                    // Classifica o projeto para os gráficos e listas
+                    if (!pr.hasTags()) {
+                        ignoredProjects.add(pr.projectName());
+                    } else if (!pr.commits().isEmpty()) {
+                        activeProjects.add(pr.projectName());
+                    }
                 }
             }
 
-            return allCommits;
+            return new SourceControlResult(allCommits, activeProjects, ignoredProjects);
 
         } catch (GitLabApiException | InterruptedException | ExecutionException e) {
             if (e instanceof InterruptedException) {
                 Thread.currentThread().interrupt();
             }
-            // Futuramente lançar uma exceção de domínio aqui (ex: AuditException)
             throw new RuntimeException("Error fetching data from GitLab: " + e.getMessage(), e);
         }
     }
 
-    private List<Commit> processProject(GitLabApi gitLabApi, Project project, Profile profile, String targetBranch) throws InterruptedException {
+    private ProjectResult processProject(GitLabApi gitLabApi, Project project, Profile profile, String targetBranch) throws InterruptedException {
         rateLimiter.acquire();
         try {
             return fetchWithFallback(gitLabApi, project, profile, targetBranch);
@@ -64,7 +82,7 @@ public class GitLabAdapter implements SourceControlPort {
         }
     }
 
-    private List<Commit> fetchWithFallback(GitLabApi gitLabApi, Project project, Profile profile, String target) {
+    private ProjectResult fetchWithFallback(GitLabApi gitLabApi, Project project, Profile profile, String target) {
         try {
             return executeGitLabCompare(gitLabApi, project, profile, target);
         } catch (GitLabApiException e) {
@@ -73,35 +91,46 @@ public class GitLabAdapter implements SourceControlPort {
                     System.out.println("    [!] Branch " + target + " not found in " + project.getName() + ". Trying fallback: " + profile.secondaryTargetBranch());
                     return executeGitLabCompare(gitLabApi, project, profile, profile.secondaryTargetBranch());
                 } catch (GitLabApiException e2) {
-                    return List.of();
+                    return new ProjectResult(List.of(), project.getName(), true);
                 }
             }
-            return List.of();
+            return new ProjectResult(List.of(), project.getName(), true);
         }
     }
 
-    private List<Commit> executeGitLabCompare(GitLabApi gitLabApi, Project project, Profile profile, String target) throws GitLabApiException {
+    private ProjectResult executeGitLabCompare(GitLabApi gitLabApi, Project project, Profile profile, String target) throws GitLabApiException {
         List<Tag> tags = gitLabApi.getTagsApi().getTags(project.getId());
-        if (tags.isEmpty()) return List.of();
+
+        if (tags.isEmpty()) {
+            return new ProjectResult(List.of(), project.getName(), false);
+        }
 
         String latestTagName = tags.get(0).getName();
 
         CompareResults comparison = gitLabApi.getRepositoryApi()
-          .compare(project.getId(), latestTagName, target);
+                .compare(project.getId(), latestTagName, target);
 
-        return comparison.getCommits().stream()
-          .map(gitlabCommit -> mapToDomainCommit(gitlabCommit, profile.taskRegex()))
-          .collect(Collectors.toList());
+        List<Commit> commits = comparison.getCommits().stream()
+                .filter(this::isMeaningfulCommit)
+                .map(gitlabCommit -> mapToDomainCommit(gitlabCommit, profile.taskRegex()))
+                .collect(Collectors.toList());
+
+        return new ProjectResult(commits, project.getName(), true);
+    }
+
+    private boolean isMeaningfulCommit(org.gitlab4j.api.models.Commit commit) {
+        if (commit.getMessage() == null) return false;
+        return !IGNORE_COMMIT_PATTERN.matcher(commit.getMessage().trim()).find();
     }
 
     private Commit mapToDomainCommit(org.gitlab4j.api.models.Commit gitlabCommit, String regex) {
         List<String> associatedTasks = extractTaskIdsFromMessage(gitlabCommit.getMessage(), regex);
         return new Commit(
-          gitlabCommit.getId(),
-          gitlabCommit.getMessage(),
-          gitlabCommit.getAuthorName(),
-          associatedTasks,
-          gitlabCommit.getWebUrl()
+                gitlabCommit.getId(),
+                gitlabCommit.getMessage(),
+                gitlabCommit.getAuthorName(),
+                associatedTasks,
+                gitlabCommit.getWebUrl()
         );
     }
 
@@ -116,5 +145,4 @@ public class GitLabAdapter implements SourceControlPort {
         }
         return taskIds;
     }
-
 }

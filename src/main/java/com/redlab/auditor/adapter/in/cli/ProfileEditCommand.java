@@ -9,7 +9,7 @@ import picocli.CommandLine.Parameters;
 import java.util.Map;
 import java.util.Scanner;
 
-@Command(name = "profile-edit", description = "Edits an existing profile.")
+@Command(name = "edit", description = "Edits an existing profile.")
 public class ProfileEditCommand implements Runnable {
 
 			@Inject
