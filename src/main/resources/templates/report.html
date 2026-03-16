@@ -8,33 +8,50 @@
     <style>
         :root { --primary-color: #2c3e50; --secondary-color: #34495e; --bg-color: #f4f7f6; --text-color: #333; --success: #27ae60; --danger: #e74c3c; --warning: #f39c12; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 0 auto; padding: 2rem 10%; max-width: 1400px; background-color: var(--bg-color); color: var(--text-color); line-height: 1.6;}
-        h1, h2 { color: var(--primary-color); border-bottom: 2px solid #ddd; padding-bottom: 0.5rem; margin-top: 2rem; }
+        h1, h2 { color: var(--primary-color); padding-bottom: 0.5rem; margin-top: 2rem; }
+        h3 { margin-bottom: 0; }
 
-        .dashboard-cards { display: flex; gap: 1rem; margin-bottom: 2rem; }
-        .card { background: white; padding: 1.5rem; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); flex: 1; text-align: center; border-top: 4px solid #3498db; }
-        .card.warning { border-top-color: var(--danger); }
-        .card h3 { margin: 0; font-size: 2.5rem; color: var(--primary-color); }
-        .card p { margin: 0.5rem 0 0; color: #7f8c8d; text-transform: uppercase; font-size: 0.85rem; letter-spacing: 1px; }
+        /* Headers and Titles */
+        .header-container { display: flex; align-items: center; gap: 1.5rem; margin-bottom: 2rem; padding-bottom: 1.5rem; font-size: 1rem; border-bottom: 2px solid #eee; }
+        .logo-svg { width: 50px; height: auto; filter: drop-shadow(0px 4px 4px rgba(0,0,0,0.1));}
+        .title-group h1 { margin: 0; border-bottom: none; padding-bottom: 0; }
+        .title-group p { margin: 0; color: #7f8c8d; font-size: 1rem; font-weight: 500; text-transform: uppercase; letter-spacing: 1px; }
+        .section-heading { color: var(--primary-color); font-size: 1.5rem; margin-top: 1.5rem; margin-bottom: 1rem; padding-bottom: 0.5rem; }
 
-        .donut-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; margin-bottom: 2rem; }
+        /* Summary Cards (Project Manager & Source Control) */
+        .summary-grid { display: flex; gap: 1.5rem; margin-bottom: 1.5rem; align-items: stretch; }
+        .summary-card { background: white; padding: 1rem 1.5rem; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); flex: 1; border-top: 4px solid var(--secondary-color); display: flex; flex-direction: column; }
+        .summary-card h3 { margin-top: 0; color: var(--primary-color); display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #eee; padding-bottom: 0.8rem; font-size: 1.2rem; }
+        .summary-card h3 a { color: inherit; text-decoration: none; transition: color 0.2s; }
+        .summary-card h3 a:hover { color: #3498db; text-decoration: underline; }
+        .summary-card:first-child { border-top-color: #3498db; }
+        .summary-card:last-child { border-top-color: #e74c3c; }
+        .summary-list { list-style: none; padding: 0; margin: 0; font-size: 0.95rem; flex-grow: 1; }
+        .summary-list li { display: flex; justify-content: space-between; align-items: center; padding: 0.6rem 0; border-bottom: 1px dashed #eee; }
+        .summary-list li:last-child { border-bottom: none; }
+        .summary-label { color: #7f8c8d; font-weight: 500; }
+        .summary-value { font-weight: 600; text-align: right; color: var(--primary-color); }
+        .summary-footer { border-top: 2px solid #eee; padding-top: 1rem; margin-top: 1rem; display: flex; justify-content: space-between; align-items: center; }
+        .summary-value-highlight { font-size: 1.5rem; font-weight: 700; color: var(--primary-color); }
+        .badge-group { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+        .text-muted { color: #95a5a6; font-size: 0.85em; font-weight: normal; }
+
+        /* Graphs */
+        .donut-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.5rem; margin-bottom: 2rem; }
         .chart-container { background: white; padding: 1.5rem; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 1.5rem; }
         .donut-container { text-align: center; }
+        .donut-container canvas { max-height: 160px !important; width: 100% !important; margin: 0 auto; }
 
+        /* Tables and General Elements */
         table { width: 100%; border-collapse: collapse; margin-bottom: 2rem; background: white; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border-radius: 8px; overflow: hidden; }
         th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #eee; }
         th { background-color: var(--primary-color); color: white; font-weight: 500; }
         tr:hover { background-color: #f9f9f9; }
         a { color: #3498db; text-decoration: none; }
-
         .status-OK { color: var(--success); font-weight: bold; }
         .status-PROBLEM { color: var(--danger); font-weight: bold; }
         .status-WARNING { color: var(--warning); font-weight: bold; }
         .badge { padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; background: #eee; }
-
-        .header-container { display: flex; align-items: center; gap: 1.5rem; margin-bottom: 2rem; }
-        .logo-svg { width: 50px; height: auto; filter: drop-shadow(0px 4px 4px rgba(0,0,0,0.1));}
-        .title-group h1 { margin: 0; border-bottom: none; padding-bottom: 0; }
-        .title-group p { margin: 0; color: #7f8c8d; font-size: 1.1rem; font-weight: 500; }
     </style>
 </head>
 <body>
@@ -76,32 +93,96 @@
     </svg>
 
     <div class="title-group">
-        <h1>RedLab</h1>
-        <p>Auditor — Release <strong>{reportData.targetVersion}</strong></p>
+        <h1>RedLab Auditor</h1>
+        <p>Version <strong>{reportData.toolVersion}</strong></p>
     </div>
 </div>
 
-<div class="dashboard-cards">
-    <div class="card">
-        <h3>{reportData.items.size}</h3>
-        <p>Total Tasks Audited</p>
+<h2 class="section-heading">Audit Summary</h2>
+
+<div class="summary-grid">
+    <div class="summary-card">
+        <h3>Project Manager: <a href="{reportData.pmInfo.providerUrl}" target="_blank">{reportData.pmInfo.providerName}</a></h3>
+        <ul class="summary-list">
+            <li>
+                <span class="summary-label">Project</span>
+                <span class="summary-value">{reportData.pmInfo.projectName} <span class="text-muted">(#{reportData.pmInfo.projectId})</span></span>
+            </li>
+            <li>
+                <span class="summary-label">Target Version</span>
+                <span class="summary-value">
+                    <a href="{reportData.pmInfo.versionUrl}" target="_blank">{reportData.pmInfo.versionName}</a>
+                    <span class="text-muted">(#{reportData.pmInfo.versionId})</span>
+                </span>
+            </li>
+            <li>
+                <span class="summary-label">Status</span>
+                <span class="summary-value"><span class="badge">{reportData.pmInfo.versionStatus}</span></span>
+            </li>
+            <li>
+                <span class="summary-label">Due Date</span>
+                <span class="summary-value">{reportData.pmInfo.dueDate}</span>
+            </li>
+            <li>
+                <span class="summary-label">Trackers</span>
+                <div class="badge-group">
+                    {#for tracker in reportData.pmInfo.trackers}
+                        <span class="badge">{tracker.name} <span class="text-muted">({tracker.id})</span></span>
+                    {/for}
+                </div>
+            </li>
+        </ul>
+        <div class="summary-footer">
+            <span class="summary-label">Total Tasks Audited</span>
+            <span class="summary-value-highlight">{reportData.items.size}</span>
+        </div>
     </div>
-    <div class="card warning">
-        <h3>{reportData.orphanCommits.size}</h3>
-        <p>Orphan Commits Detected</p>
+
+    <div class="summary-card">
+        <h3>Source Control: <a href="{reportData.scInfo.providerUrl}" target="_blank">{reportData.scInfo.providerName}</a></h3>
+        <ul class="summary-list">
+            <li>
+                <span class="summary-label">Group</span>
+                <span class="summary-value">{reportData.scInfo.groupName} <span class="text-muted">(#{reportData.scInfo.groupId})</span></span>
+            </li>
+            <li>
+                <span class="summary-label">Total Projects in Group</span>
+                <span class="summary-value">{reportData.scInfo.totalProjects}</span>
+            </li>
+            <li>
+                <span class="summary-label">Valid Projects (With Tags)</span>
+                <span class="summary-value">{reportData.scInfo.validProjects}</span>
+            </li>
+            <li>
+                <span class="summary-label">Projects with New Commits</span>
+                <span class="summary-value">{reportData.scInfo.activeProjectsCount}</span>
+            </li>
+            <li>
+                <span class="summary-label">Orphan Commits Detected</span>
+                <span class="summary-value">{reportData.orphanCommits.size}</span>
+            </li>
+        </ul>
+        <div class="summary-footer">
+            <span class="summary-label">Total Commits Audited</span>
+            <span class="summary-value-highlight">{reportData.totalCommitsCount}</span>
+        </div>
     </div>
 </div>
 
 <div class="donut-grid">
-    <div class="chart-container donut-container">
-        <p><strong>Projects with New Commits</strong></p>
-        <canvas id="projectsDonut"></canvas>
+    <div class="donut-container">
+        <p><strong>Projects with Tags</strong></p>
+        <canvas id="projectsTagsDonut"></canvas>
     </div>
-    <div class="chart-container donut-container">
+    <div class="donut-container">
+        <p><strong>Projects with New Commits</strong></p>
+        <canvas id="projectsCommitsDonut"></canvas>
+    </div>
+    <div class="donut-container">
         <p><strong>Commits Linked to Tasks</strong></p>
         <canvas id="commitsDonut"></canvas>
     </div>
-    <div class="chart-container donut-container">
+    <div class="donut-container">
         <p><strong>Tasks Validated (with Commit)</strong></p>
         <canvas id="tasksDonut"></canvas>
     </div>
@@ -228,7 +309,33 @@
         }
     };
 
-    new Chart(document.getElementById('projectsDonut'), {
+    const donutOptions = {
+        ...globalOptions,
+        plugins: {
+            legend: {
+                position: 'bottom',
+                labels: {
+                    boxWidth: 12,
+                    font: { size: 11 }
+                }
+            }
+        }
+    };
+
+    new Chart(document.getElementById('projectsTagsDonut'), {
+        type: 'doughnut',
+        data: {
+            labels: ['With Tag', 'No Tag'],
+            datasets: [{
+                data: [{reportData.scInfo.validProjects}, {reportData.scInfo.validProjects}],
+                backgroundColor: ['#3498db', '#bdc3c7'],
+                cutout: '60%'
+            }]
+        },
+        options: donutOptions
+    });
+
+    new Chart(document.getElementById('projectsCommitsDonut'), {
         type: 'doughnut',
         data: {
             labels: ['Active', 'Ignored'],
@@ -238,7 +345,7 @@
                 cutout: '60%'
             }]
         },
-        options: globalOptions
+        options: donutOptions
     });
 
     new Chart(document.getElementById('commitsDonut'), {
@@ -251,7 +358,7 @@
                 cutout: '60%'
             }]
         },
-        options: globalOptions
+        options: donutOptions
     });
 
     new Chart(document.getElementById('tasksDonut'), {
@@ -264,7 +371,7 @@
                 cutout: '60%'
             }]
         },
-        options: globalOptions
+        options: donutOptions
     });
 
     new Chart(document.getElementById('tasksChart'), {

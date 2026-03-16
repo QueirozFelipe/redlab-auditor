@@ -4,8 +4,12 @@ import java.util.List;
 import java.util.Map;
 
 public record AuditReport(
+								String toolVersion,
         String targetVersion,
+								ProjectManagerInfo pmInfo,
+								SourceControlInfo scInfo,
         List<AuditReportItem> items,
+								long totalCommitsCount,
         List<Commit> orphanCommits,
         List<String> activeProjects,
         List<String> ignoredProjects,

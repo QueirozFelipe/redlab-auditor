@@ -3,12 +3,10 @@ package com.redlab.auditor.usecase;
 import com.redlab.auditor.domain.model.*;
 import com.redlab.auditor.infrastructure.security.ProfileStorageService;
 import com.redlab.auditor.usecase.port.in.AuditCommandPort;
-import com.redlab.auditor.usecase.port.out.ProjectManagerPort;
-import com.redlab.auditor.usecase.port.out.ReportGeneratorPort;
-import com.redlab.auditor.usecase.port.out.SourceControlPort;
-import com.redlab.auditor.usecase.port.out.SourceControlResult;
+import com.redlab.auditor.usecase.port.out.*;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 import java.util.List;
 import java.util.Map;
@@ -22,6 +20,8 @@ public class GenerateAuditReportUseCase implements AuditCommandPort {
     private final SourceControlPort sourceControlPort;
     private final ReportGeneratorPort reportGeneratorPort;
     private final ProfileStorageService profileStorageService;
+    @ConfigProperty(name = "quarkus.application.version")
+    String toolVersion;
 
     @Inject
     public GenerateAuditReportUseCase(
@@ -40,13 +40,17 @@ public class GenerateAuditReportUseCase implements AuditCommandPort {
         Profile profile = profileStorageService.loadProfiles().get(profileName);
         if (profile == null) throw new RuntimeException("Profile not found: " + profileName);
 
-        List<Task> tasks = projectManagerPort.fetchTasksByVersion(profile, version);
+        ProjectManagerResult pmResult = projectManagerPort.fetchTasksByVersion(profile, version);
+        ProjectManagerInfo pmInfo = pmResult.pmInfo();
+        List<Task> tasks = pmResult.tasks();
+
         Set<String> validTaskIds = tasks.stream().map(Task::id).collect(Collectors.toSet());
 
         Map<String, Long> tasksPerAssignee = tasks.stream()
                 .collect(Collectors.groupingBy(Task::assignee, Collectors.counting()));
 
         SourceControlResult scResult = sourceControlPort.fetchCommitsSinceLastTag(profile, targetBranch);
+        SourceControlInfo scInfo = scResult.scInfo();
         List<Commit> commits = scResult.commits();
 
         Map<String, Long> commitsPerAuthor = commits.stream()
@@ -69,11 +73,16 @@ public class GenerateAuditReportUseCase implements AuditCommandPort {
 
         long tasksWithCommitCount = reportItems.stream().filter(item -> !item.foundCommits().isEmpty()).count();
         long tasksMissingCommitCount = reportItems.size() - tasksWithCommitCount;
-        long totalLinkedCommits = commits.size() - orphanCommits.size();
+        long totalCommitsCount = commits.size();
+        long totalLinkedCommits = totalCommitsCount - orphanCommits.size();
 
         AuditReport report = new AuditReport(
+                toolVersion,
                 version,
+                pmInfo,
+                scInfo,
                 reportItems,
+                totalCommitsCount,
                 orphanCommits,
                 scResult.activeProjects(),
                 scResult.ignoredProjects(),

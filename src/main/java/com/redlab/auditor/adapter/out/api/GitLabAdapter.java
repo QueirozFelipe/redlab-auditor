@@ -2,12 +2,14 @@ package com.redlab.auditor.adapter.out.api;
 
 import com.redlab.auditor.domain.model.Commit;
 import com.redlab.auditor.domain.model.Profile;
+import com.redlab.auditor.domain.model.SourceControlInfo;
 import com.redlab.auditor.usecase.port.out.SourceControlPort;
 import com.redlab.auditor.usecase.port.out.SourceControlResult;
 import jakarta.enterprise.context.ApplicationScoped;
 import org.gitlab4j.api.GitLabApi;
 import org.gitlab4j.api.GitLabApiException;
 import org.gitlab4j.api.models.CompareResults;
+import org.gitlab4j.api.models.Group;
 import org.gitlab4j.api.models.Project;
 import org.gitlab4j.api.models.Tag;
 
@@ -30,10 +32,13 @@ public class GitLabAdapter implements SourceControlPort {
 
     @Override
     public SourceControlResult fetchCommitsSinceLastTag(Profile profile, String targetBranch) {
-        GitLabApi gitLabApi = new GitLabApi(profile.gitlabUrl(), profile.gitlabToken());
         this.rateLimiter = new Semaphore(profile.gitlabRateLimit());
 
-        try {
+        try (GitLabApi gitLabApi = new GitLabApi(profile.gitlabUrl(), profile.gitlabToken())) {
+            Group group = gitLabApi.getGroupApi().getGroup(profile.gitlabGroupId());
+            String groupName = group.getName();
+            String groupId = String.valueOf(group.getId());
+
             List<Project> projects = gitLabApi.getGroupApi().getProjects(profile.gitlabGroupId());
 
             List<Commit> allCommits = new ArrayList<>();
@@ -51,10 +56,8 @@ public class GitLabAdapter implements SourceControlPort {
                 for (Future<ProjectResult> resultFuture : results) {
                     ProjectResult pr = resultFuture.get();
 
-                    // Adiciona os commits (se houver) na lista geral
                     allCommits.addAll(pr.commits());
 
-                    // Classifica o projeto para os gráficos e listas
                     if (!pr.hasTags()) {
                         ignoredProjects.add(pr.projectName());
                     } else if (!pr.commits().isEmpty()) {
@@ -63,7 +66,20 @@ public class GitLabAdapter implements SourceControlPort {
                 }
             }
 
-            return new SourceControlResult(allCommits, activeProjects, ignoredProjects);
+            int totalProjects = projects.size();
+            int validProjectsCount = totalProjects - ignoredProjects.size();
+
+            SourceControlInfo scInfo = new SourceControlInfo(
+              "GitLab",
+              profile.gitlabUrl(),
+              groupName,
+              groupId,
+              totalProjects,
+              validProjectsCount,
+              activeProjects.size()
+            );
+
+            return new SourceControlResult(scInfo, allCommits, activeProjects, ignoredProjects);
 
         } catch (GitLabApiException | InterruptedException | ExecutionException e) {
             if (e instanceof InterruptedException) {

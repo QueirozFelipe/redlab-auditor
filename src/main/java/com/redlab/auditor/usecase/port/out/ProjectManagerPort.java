@@ -13,5 +13,5 @@ public interface ProjectManagerPort {
      * @param version The version code or identifier provided by the user.
      * @return A list of {@link Task} objects belonging to the specified version.
      */
-    List<Task> fetchTasksByVersion(Profile profile, String version);
+    ProjectManagerResult fetchTasksByVersion(Profile profile, String version);
 }

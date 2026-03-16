@@ -1,4 +1,5 @@
 package com.redlab.auditor.domain.model;
 
-public record Tracker() {
+public record Tracker(String id,
+																						String name) {
 }

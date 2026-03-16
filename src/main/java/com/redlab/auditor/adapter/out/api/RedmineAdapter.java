@@ -1,25 +1,27 @@
 package com.redlab.auditor.adapter.out.api;
 
 import com.redlab.auditor.domain.model.Profile;
+import com.redlab.auditor.domain.model.ProjectManagerInfo;
 import com.redlab.auditor.domain.model.Task;
+import com.redlab.auditor.domain.model.Tracker;
 import com.redlab.auditor.usecase.port.out.ProjectManagerPort;
-import com.taskadapter.redmineapi.IssueManager;
-import com.taskadapter.redmineapi.RedmineException;
-import com.taskadapter.redmineapi.RedmineManager;
-import com.taskadapter.redmineapi.RedmineManagerFactory;
+import com.redlab.auditor.usecase.port.out.ProjectManagerResult;
+import com.taskadapter.redmineapi.*;
 import com.taskadapter.redmineapi.bean.Issue;
+import com.taskadapter.redmineapi.bean.Version;
 import jakarta.enterprise.context.ApplicationScoped;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.text.SimpleDateFormat;
+import java.util.*;
 import java.util.stream.Collectors;
+
+import static java.util.Optional.ofNullable;
 
 @ApplicationScoped
 public class RedmineAdapter implements ProjectManagerPort {
 
     @Override
-    public List<Task> fetchTasksByVersion(Profile profile, String version) {
+    public ProjectManagerResult fetchTasksByVersion(Profile profile, String version) {
         RedmineManager redmineManager = RedmineManagerFactory.createWithApiKey(
           profile.redmineUrl(),
           profile.redmineToken()
@@ -27,9 +29,48 @@ public class RedmineAdapter implements ProjectManagerPort {
 
         try {
             IssueManager issueManager = redmineManager.getIssueManager();
+            ProjectManager projectManager = redmineManager.getProjectManager();
+
+            Version targetVersion = projectManager.getVersionById(Integer.parseInt(version));
+
+            String projectId = ofNullable(targetVersion.getProjectId()).map(Object::toString).orElse("");
+            String projectName = ofNullable(targetVersion.getProjectName()).orElse("");
+            String versionName = ofNullable(targetVersion.getName()).orElse("");
+            String versionStatus = ofNullable(targetVersion.getStatus()).orElse("");
+
+            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+            String dueDate = ofNullable(targetVersion.getDueDate()).map(sdf::format).orElse("");
+            String versionUrl = profile.redmineUrl() + "/versions/" + version;
+
+            List<Tracker> selectedTrackers = new ArrayList<>();
+            if (profile.redmineTrackers() != null && !profile.redmineTrackers().isBlank()) {
+                Set<String> trackerIds = Arrays.stream(profile.redmineTrackers().split(","))
+                  .map(String::trim)
+                  .collect(Collectors.toSet());
+
+                List<com.taskadapter.redmineapi.bean.Tracker> allTrackers = issueManager.getTrackers();
+                selectedTrackers = allTrackers.stream()
+                  .filter(t -> trackerIds.contains(String.valueOf(t.getId())))
+                  .map(t -> new Tracker(String.valueOf(t.getId()), t.getName()))
+                  .collect(Collectors.toList());
+            } else {
+                selectedTrackers.add(new Tracker("*", "All Trackers"));
+            }
+
+            ProjectManagerInfo pmInfo = new ProjectManagerInfo(
+              "Redmine",
+              profile.redmineUrl(),
+              projectName,
+              projectId,
+              versionName,
+              version,
+              versionUrl,
+              versionStatus,
+              dueDate,
+              selectedTrackers
+            );
 
             Map<String, String> parameters = new HashMap<>();
-
             parameters.put("fixed_version_id", version);
             parameters.put("status_id", "*");
             if (profile.redmineTrackers() != null && !profile.redmineTrackers().isBlank()) {
@@ -38,13 +79,14 @@ public class RedmineAdapter implements ProjectManagerPort {
 
             List<Issue> issues = issueManager.getIssues(parameters).getResults();
 
-            return issues.stream()
-                    .map(issue -> mapToDomainTask(issue, profile.redmineUrl()))
-                    .collect(Collectors.toList());
+            List<Task> tasks = issues.stream()
+              .map(issue -> mapToDomainTask(issue, profile.redmineUrl()))
+              .collect(Collectors.toList());
+
+            return new ProjectManagerResult(pmInfo, tasks);
 
         } catch (RedmineException e) {
-            // Futuramente lançar uma exceção de domínio aqui (ex: AuditException)
-            throw new RuntimeException("Error fetching tasks from Redmine: " + e.getMessage(), e);
+            throw new RuntimeException("Error fetching data from Redmine: " + e.getMessage(), e);
         }
     }
 
