@@ -6,72 +6,88 @@ import jakarta.inject.Inject;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Parameters;
 
+import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
+import java.util.stream.Collectors;
 
 @Command(name = "edit", description = "Edits an existing profile.")
 public class ProfileEditCommand implements Runnable {
 
-			@Inject
-			ProfileStorageService storage;
+    @Inject
+    ProfileStorageService storage;
 
-			@Parameters(index = "0", description = "Name of the profile to be edited.")
-			String profileName;
+    @Parameters(index = "0", description = "Name of the profile to be edited.")
+    String profileName;
 
-			@Override
-			public void run() {
-						Map<String, Profile> profiles = storage.loadProfiles();
+    @Override
+    public void run() {
+        Map<String, Profile> profiles = storage.loadProfiles();
 
-						if (!profiles.containsKey(profileName)) {
-									System.err.println("[ERROR] Profile '" + profileName + "' not found.");
-									return;
-						}
+        if (!profiles.containsKey(profileName)) {
+            System.err.println("[ERROR] Profile '" + profileName + "' not found.");
+            return;
+        }
 
-						Profile p = profiles.get(profileName);
-						Scanner scanner = new Scanner(System.in);
+        Profile p = profiles.get(profileName);
+        Scanner scanner = new Scanner(System.in);
 
-						System.out.println("=== Editing Profile: " + profileName + " ===");
-						System.out.println("(Press Enter to keep current value)");
+        System.out.println("=== Editing Profile: " + profileName + " ===");
+        System.out.println("(Press Enter to keep current value)");
 
-						String url = ask(scanner, "Redmine URL", p.redmineUrl());
-						String rToken = askToken(scanner, "Redmine Token", p.redmineToken());
-						String rTrackers = askToken(scanner, "Redmine Trackers", p.redmineTrackers());
-						String gUrl = ask(scanner, "Gitlab URL", p.gitlabUrl());
-						String gToken = askToken(scanner, "Gitlab Token", p.gitlabToken());
-						String gGroupId = ask(scanner, "Gitlab Group ID", p.gitlabGroupId());
+        String url = ask(scanner, "Redmine URL", p.redmineUrl());
+        String rToken = askToken(scanner, "Redmine Token", p.redmineToken());
+        String rTrackers = askToken(scanner, "Redmine Trackers", p.redmineTrackers());
+        String gUrl = ask(scanner, "Gitlab URL", p.gitlabUrl());
+        String gToken = askToken(scanner, "Gitlab Token", p.gitlabToken());
+        String gGroupId = ask(scanner, "Gitlab Group ID", p.gitlabGroupId());
 
-						int gRateLimit = Integer.parseInt(ask(scanner, "Gitlab Rate Limit", String.valueOf(p.gitlabRateLimit())));
+        int gRateLimit = Integer.parseInt(ask(scanner, "Gitlab Rate Limit", String.valueOf(p.gitlabRateLimit())));
 
-						String mainTarget = ask(scanner, "Main Target Branch", p.mainTargetBranch());
-						String secTarget = ask(scanner, "Secondary Target Branch", p.secondaryTargetBranch());
-						String regex = ask(scanner, "Task Regex", p.taskRegex());
+        String currentSourceStr = String.join(", ", p.sourceBranches());
+        String currentTargetStr = String.join(", ", p.targetBranches());
+        List<String> sourceBranches = parseList(ask(scanner, "Source Branches", currentSourceStr));
+        List<String> targetBranches = parseList(ask(scanner, "Target Branches", currentTargetStr));
 
-						Profile updatedProfile = new Profile(
-								profileName, url, rToken, rTrackers, gUrl, gToken,
-								gGroupId, gRateLimit, mainTarget, secTarget, regex
-						);
+        String regex = ask(scanner, "Task Regex", p.taskRegex());
 
-						profiles.put(profileName, updatedProfile);
-						storage.saveProfiles(profiles);
+        Profile updatedProfile = new Profile(
+                profileName, url, rToken, rTrackers, gUrl, gToken,
+                gGroupId, gRateLimit, sourceBranches, targetBranches, regex
+        );
 
-						System.out.println("\n[SUCCESS] Profile '" + profileName + "' updated successfully.");
-			}
+        profiles.put(profileName, updatedProfile);
+        storage.saveProfiles(profiles);
 
-			private String ask(Scanner scanner, String label, String currentValue) {
-						System.out.print(label + " [" + (currentValue == null ? "" : currentValue) + "]: ");
-						String input = scanner.nextLine();
-						return input.isBlank() ? currentValue : input;
-			}
+        System.out.println("\n[SUCCESS] Profile '" + profileName + "' updated successfully.");
+    }
 
-			private String askToken(Scanner scanner, String label, String currentToken) {
-						String masked = mask(currentToken);
-						System.out.print(label + " [" + masked + "]: ");
-						String input = scanner.nextLine();
-						return input.isBlank() ? currentToken : input;
-			}
+    private String ask(Scanner scanner, String label, String currentValue) {
+        System.out.print(label + " [" + (currentValue == null ? "" : currentValue) + "]: ");
+        String input = scanner.nextLine();
+        return input.isBlank() ? currentValue : input;
+    }
 
-			private String mask(String token) {
-						if (token == null || token.length() < 8) return "****";
-						return token.substring(0, 4) + "****" + token.substring(token.length() - 4);
-			}
+    private String askToken(Scanner scanner, String label, String currentToken) {
+        String masked = mask(currentToken);
+        System.out.print(label + " [" + masked + "]: ");
+        String input = scanner.nextLine();
+        return input.isBlank() ? currentToken : input;
+    }
+
+    private String mask(String token) {
+        if (token == null || token.length() < 8) return "****";
+        return token.substring(0, 4) + "****" + token.substring(token.length() - 4);
+    }
+
+    private List<String> parseList(String input) {
+        if (input == null || input.isBlank()) {
+            return List.of();
+        }
+        return Arrays.stream(input.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .collect(Collectors.toList());
+    }
 }

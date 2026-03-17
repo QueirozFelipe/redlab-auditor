@@ -6,7 +6,7 @@ import com.redlab.auditor.domain.model.SourceControlInfo;
 import java.util.List;
 
 public record SourceControlResult(SourceControlInfo scInfo,
-																																		List<Commit> commits,
-																																		List<String> activeProjects,
-																																		List<String> ignoredProjects) {
+                                  List<Commit> commits,
+                                  List<String> activeProjects,
+                                  List<String> ignoredProjects) {
 }

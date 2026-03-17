@@ -11,7 +11,6 @@ import org.gitlab4j.api.GitLabApiException;
 import org.gitlab4j.api.models.CompareResults;
 import org.gitlab4j.api.models.Group;
 import org.gitlab4j.api.models.Project;
-import org.gitlab4j.api.models.Tag;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -24,14 +23,17 @@ import java.util.stream.Collectors;
 public class GitLabAdapter implements SourceControlPort {
 
     private Semaphore rateLimiter;
-    private record ProjectResult(List<Commit> commits, String projectName, boolean hasTags) {}
+
+    private record ProjectResult(List<Commit> commits, String projectName, boolean isValid) {
+    }
+
     private static final Pattern IGNORE_COMMIT_PATTERN = Pattern.compile(
             "^(Merge branch|Merge pull request|See merge request|Merge tag|chore:?\\s*release).*",
             Pattern.CASE_INSENSITIVE
     );
 
     @Override
-    public SourceControlResult fetchCommitsSinceLastTag(Profile profile, String targetBranch) {
+    public SourceControlResult compareBranches(Profile profile, List<String> sourceBranches, List<String> targetBranches) {
         this.rateLimiter = new Semaphore(profile.gitlabRateLimit());
 
         try (GitLabApi gitLabApi = new GitLabApi(profile.gitlabUrl(), profile.gitlabToken())) {
@@ -48,7 +50,7 @@ public class GitLabAdapter implements SourceControlPort {
             try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
 
                 List<Callable<ProjectResult>> tasks = projects.stream()
-                        .map(project -> (Callable<ProjectResult>) () -> processProject(gitLabApi, project, profile, targetBranch))
+                        .map(project -> (Callable<ProjectResult>) () -> processProject(gitLabApi, project, profile, sourceBranches, targetBranches))
                         .toList();
 
                 List<Future<ProjectResult>> results = executor.invokeAll(tasks);
@@ -58,7 +60,7 @@ public class GitLabAdapter implements SourceControlPort {
 
                     allCommits.addAll(pr.commits());
 
-                    if (!pr.hasTags()) {
+                    if (!pr.isValid()) {
                         ignoredProjects.add(pr.projectName());
                     } else if (!pr.commits().isEmpty()) {
                         activeProjects.add(pr.projectName());
@@ -70,13 +72,13 @@ public class GitLabAdapter implements SourceControlPort {
             int validProjectsCount = totalProjects - ignoredProjects.size();
 
             SourceControlInfo scInfo = new SourceControlInfo(
-              "GitLab",
-              profile.gitlabUrl(),
-              groupName,
-              groupId,
-              totalProjects,
-              validProjectsCount,
-              activeProjects.size()
+                    "GitLab",
+                    profile.gitlabUrl(),
+                    groupName,
+                    groupId,
+                    totalProjects,
+                    validProjectsCount,
+                    activeProjects.size()
             );
 
             return new SourceControlResult(scInfo, allCommits, activeProjects, ignoredProjects);
@@ -89,49 +91,45 @@ public class GitLabAdapter implements SourceControlPort {
         }
     }
 
-    private ProjectResult processProject(GitLabApi gitLabApi, Project project, Profile profile, String targetBranch) throws InterruptedException {
+    private ProjectResult processProject(GitLabApi gitLabApi,
+                                         Project project,
+                                         Profile profile,
+                                         List<String> sourceBranches,
+                                         List<String> targetBranches) throws InterruptedException {
         rateLimiter.acquire();
         try {
-            return fetchWithFallback(gitLabApi, project, profile, targetBranch);
+            System.out.println("  [>] Auditing project: " + project.getName());
+            return executeWithFailover(gitLabApi, project, profile, sourceBranches, targetBranches);
         } finally {
             rateLimiter.release();
         }
     }
 
-    private ProjectResult fetchWithFallback(GitLabApi gitLabApi, Project project, Profile profile, String target) {
-        try {
-            return executeGitLabCompare(gitLabApi, project, profile, target);
-        } catch (GitLabApiException e) {
-            if (e.getHttpStatus() == 404 && profile.secondaryTargetBranch() != null && !profile.secondaryTargetBranch().isBlank()) {
+    private ProjectResult executeWithFailover(GitLabApi gitLabApi, Project project, Profile profile, List<String> sourceBranches, List<String> targetBranches) {
+        for (String target : targetBranches) {
+            for (String source : sourceBranches) {
                 try {
-                    System.out.println("    [!] Branch " + target + " not found in " + project.getName() + ". Trying fallback: " + profile.secondaryTargetBranch());
-                    return executeGitLabCompare(gitLabApi, project, profile, profile.secondaryTargetBranch());
-                } catch (GitLabApiException e2) {
-                    return new ProjectResult(List.of(), project.getName(), true);
+                    CompareResults comparison = gitLabApi.getRepositoryApi()
+                            .compare(project.getId(), target, source);
+
+                    List<Commit> commits = comparison.getCommits().stream()
+                            .filter(this::isMeaningfulCommit)
+                            .map(gitlabCommit -> mapToDomainCommit(gitlabCommit, profile.taskRegex()))
+                            .collect(Collectors.toList());
+
+                    return new ProjectResult(commits, project.getName(), true);
+
+                } catch (GitLabApiException e) {
+                    if (e.getHttpStatus() == 404) {
+                        continue;
+                    }
+                    System.err.println("    [!] Error comparing " + target + "..." + source + " in " + project.getName() + ": " + e.getMessage());
+                    break;
                 }
             }
-            return new ProjectResult(List.of(), project.getName(), true);
         }
-    }
-
-    private ProjectResult executeGitLabCompare(GitLabApi gitLabApi, Project project, Profile profile, String target) throws GitLabApiException {
-        List<Tag> tags = gitLabApi.getTagsApi().getTags(project.getId());
-
-        if (tags.isEmpty()) {
-            return new ProjectResult(List.of(), project.getName(), false);
-        }
-
-        String latestTagName = tags.get(0).getName();
-
-        CompareResults comparison = gitLabApi.getRepositoryApi()
-                .compare(project.getId(), latestTagName, target);
-
-        List<Commit> commits = comparison.getCommits().stream()
-                .filter(this::isMeaningfulCommit)
-                .map(gitlabCommit -> mapToDomainCommit(gitlabCommit, profile.taskRegex()))
-                .collect(Collectors.toList());
-
-        return new ProjectResult(commits, project.getName(), true);
+        // If valid branches were not found
+        return new ProjectResult(List.of(), project.getName(), false);
     }
 
     private boolean isMeaningfulCommit(org.gitlab4j.api.models.Commit commit) {

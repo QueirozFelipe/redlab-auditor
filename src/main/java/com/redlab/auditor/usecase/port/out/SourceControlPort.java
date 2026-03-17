@@ -10,10 +10,10 @@ public interface SourceControlPort {
      * Retrieves all commits made after the latest tag on the production branch,
      * iterating across all projects within a repository group.
      *
-     * @param profile          The profile with all configuration needed to fetch data from the APIs.
-     * @param targetBranch     The branch intended to be merged into the production branch,
-     *                         which will be scanned for new commits.
+     * @param profile        The profile with all configuration needed to fetch data from the APIs.
+     * @param sourceBranches A prioritized list of branches containing new development (e.g., ["dev", "develop"]).
+     * @param targetBranches A prioritized list of stable/production branches (e.g., ["main", "master"]).
      * @return A consolidated list of {@link Commit} objects from all projects within the group.
      */
-    SourceControlResult fetchCommitsSinceLastTag(Profile profile, String targetBranch);
+    SourceControlResult compareBranches(Profile profile, List<String> sourceBranches, List<String> targetBranches);
 }

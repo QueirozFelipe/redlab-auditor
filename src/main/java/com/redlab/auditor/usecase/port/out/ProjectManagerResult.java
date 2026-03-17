@@ -6,5 +6,5 @@ import com.redlab.auditor.domain.model.Task;
 import java.util.List;
 
 public record ProjectManagerResult(ProjectManagerInfo pmInfo,
-																																			List<Task> tasks) {
+                                   List<Task> tasks) {
 }

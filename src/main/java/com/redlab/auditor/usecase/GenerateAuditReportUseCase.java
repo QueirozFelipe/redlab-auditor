@@ -36,7 +36,7 @@ public class GenerateAuditReportUseCase implements AuditCommandPort {
     }
 
     @Override
-    public AuditReport execute(String version, String profileName, String targetBranch) {
+    public AuditReport execute(String version, String profileName, List<String> sourceBranches, List<String> targetBranches) {
         Profile profile = profileStorageService.loadProfiles().get(profileName);
         if (profile == null) throw new RuntimeException("Profile not found: " + profileName);
 
@@ -49,7 +49,7 @@ public class GenerateAuditReportUseCase implements AuditCommandPort {
         Map<String, Long> tasksPerAssignee = tasks.stream()
                 .collect(Collectors.groupingBy(Task::assignee, Collectors.counting()));
 
-        SourceControlResult scResult = sourceControlPort.fetchCommitsSinceLastTag(profile, targetBranch);
+        SourceControlResult scResult = sourceControlPort.compareBranches(profile, sourceBranches, targetBranches);
         SourceControlInfo scInfo = scResult.scInfo();
         List<Commit> commits = scResult.commits();
 
