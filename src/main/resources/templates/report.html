@@ -8,7 +8,7 @@
     <style>
         :root { --primary-color: #2c3e50; --secondary-color: #34495e; --bg-color: #f4f7f6; --text-color: #333; --success: #27ae60; --danger: #e74c3c; --warning: #f39c12; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 0 auto; padding: 2rem 10%; max-width: 1400px; background-color: var(--bg-color); color: var(--text-color); line-height: 1.6;}
-        h1, h2 { color: var(--primary-color); padding-bottom: 0.5rem; margin-top: 2rem; }
+        h1, h2 { color: var(--primary-color); margin-top: 2rem; margin-bottom: 0.5rem; }
         h3 { margin-bottom: 0; }
 
         /* Headers and Titles */
@@ -16,25 +16,26 @@
         .logo-svg { width: 50px; height: auto; filter: drop-shadow(0px 4px 4px rgba(0,0,0,0.1));}
         .title-group h1 { margin: 0; border-bottom: none; padding-bottom: 0; }
         .title-group p { margin: 0; color: #7f8c8d; font-size: 1rem; font-weight: 500; text-transform: uppercase; letter-spacing: 1px; }
-        .section-heading { color: var(--primary-color); font-size: 1.5rem; margin-top: 1.5rem; margin-bottom: 1rem; padding-bottom: 0.5rem; }
+        .section-heading { color: var(--primary-color); font-size: 1.5rem; margin-top: 1.5rem; margin-bottom: 0.5rem; }
 
         /* Summary Cards (Project Manager & Source Control) */
-        .summary-grid { display: flex; gap: 1.5rem; margin-bottom: 1.5rem; align-items: stretch; }
-        .summary-card { background: white; padding: 1rem 1.5rem; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); flex: 1; border-top: 4px solid var(--secondary-color); display: flex; flex-direction: column; }
-        .summary-card h3 { margin-top: 0; color: var(--primary-color); display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #eee; padding-bottom: 0.8rem; font-size: 1.2rem; }
+        .summary-grid { display: flex; gap: 2rem; margin-bottom: 1.2rem; align-items: stretch; }
+        .summary-card { background: white; padding: 0.8rem 1.2rem; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); flex: 1; border-top: 3px solid var(--secondary-color); display: flex; flex-direction: column; }
+        .summary-card h3 { margin-top: 0; color: var(--primary-color); display: flex; align-items: center; gap: 6px; border-bottom: 1px solid #eee; padding-bottom: 0.6rem; font-size: 1rem; margin-bottom: 0.8rem; }
         .summary-card h3 a { color: inherit; text-decoration: none; transition: color 0.2s; }
         .summary-card h3 a:hover { color: #3498db; text-decoration: underline; }
         .summary-card:first-child { border-top-color: #3498db; }
         .summary-card:last-child { border-top-color: #e74c3c; }
-        .summary-list { list-style: none; padding: 0; margin: 0; font-size: 0.95rem; flex-grow: 1; }
-        .summary-list li { display: flex; justify-content: space-between; align-items: center; padding: 0.6rem 0; border-bottom: 1px dashed #eee; }
+        .summary-list { list-style: none; padding: 0; margin: 0; font-size: 0.85rem; flex-grow: 1; }
+        .summary-list li { display: flex; justify-content: space-between; align-items: center; padding: 0.4rem 0; border-bottom: 1px dashed #eee; }
         .summary-list li:last-child { border-bottom: none; }
         .summary-label { color: #7f8c8d; font-weight: 500; }
         .summary-value { font-weight: 600; text-align: right; color: var(--primary-color); }
-        .summary-footer { border-top: 2px solid #eee; padding-top: 1rem; margin-top: 1rem; display: flex; justify-content: space-between; align-items: center; }
-        .summary-value-highlight { font-size: 1.5rem; font-weight: 700; color: var(--primary-color); }
-        .badge-group { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
-        .text-muted { color: #95a5a6; font-size: 0.85em; font-weight: normal; }
+        .summary-footer { border-top: 1px solid #eee; padding-top: 0.8rem; display: flex; justify-content: space-between; align-items: center; }
+        .summary-value-highlight { font-size: 1.2rem; font-weight: 700; color: var(--primary-color); }
+        .badge-group { gap: 4px; display: flex; flex-wrap: wrap; justify-content: flex-end; }
+        .badge { padding: 2px 6px; border-radius: 3px; font-size: 0.75rem; background: #eee; }
+        .text-muted { color: #95a5a6; font-size: 0.8em; }
 
         /* Graphs */
         .donut-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.5rem; margin-bottom: 2rem; }
@@ -43,15 +44,21 @@
         .donut-container canvas { max-height: 160px !important; width: 100% !important; margin: 0 auto; }
 
         /* Tables and General Elements */
-        table { width: 100%; border-collapse: collapse; margin-bottom: 2rem; background: white; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border-radius: 8px; overflow: hidden; }
+        .table-scroll-container { max-height: 400px; overflow-y: auto; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 2rem; background: white; border: 1px solid #eee; }
+        .table-scroll-container th { position: sticky; top: 0; z-index: 10; background-color: var(--primary-color); }
+        table { width: 100%; border-collapse: collapse; background: white; }
         th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #eee; }
-        th { background-color: var(--primary-color); color: white; font-weight: 500; }
+        th { color: white; font-weight: 500; }
         tr:hover { background-color: #f9f9f9; }
         a { color: #3498db; text-decoration: none; }
         .status-OK { color: var(--success); font-weight: bold; }
         .status-PROBLEM { color: var(--danger); font-weight: bold; }
         .status-WARNING { color: var(--warning); font-weight: bold; }
         .badge { padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; background: #eee; }
+        .table-scroll-container::-webkit-scrollbar { width: 8px; }
+        .table-scroll-container::-webkit-scrollbar-track { background: #f1f1f1; }
+        .table-scroll-container::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
+        .table-scroll-container::-webkit-scrollbar-thumb:hover { background: #999; }
     </style>
 </head>
 <body>
@@ -218,112 +225,120 @@
     </div>
 </div>
 
+<h2>Commits per Task</h2>
 <div class="chart-container">
-    <h2>Commits per Task</h2>
     <canvas id="tasksChart"></canvas>
 </div>
 
+<h2>Activity per Developer (Commits)</h2>
 <div class="chart-container">
-    <h2>Activity per Developer (Commits)</h2>
     <canvas id="devCommitsChart"></canvas>
 </div>
 
+<h2>Responsibility per Assignee (Tasks)</h2>
 <div class="chart-container">
-    <h2>Responsibility per Assignee (Tasks)</h2>
     <canvas id="assigneeTasksChart"></canvas>
 </div>
 
 <h2>Task Status Map</h2>
-<table>
-    <thead>
-    <tr>
-        <th>Task ID</th>
-        <th>Title</th>
-        <th>Assignee</th>
-        <th>Redmine Status</th>
-        <th>Commits</th>
-        <th>Status</th>
-    </tr>
-    </thead>
-    <tbody>
-    {#for item in reportData.items}
-    <tr>
-        <td><a href="{item.task.url}" target="_blank">#{item.task.id}</a></td>
-        <td>{item.task.title}</td>
-        <td>{item.task.assignee}</td>
-        <td><span class="badge">{item.task.status}</span></td>
-        <td style="text-align: center;">{item.foundCommits.size}</td>
-        <td class="status-{item.status}">{item.status}</td>
-    </tr>
-    {/for}
-    </tbody>
-</table>
+<div class="table-scroll-container">
+    <table>
+        <thead>
+        <tr>
+            <th>Task ID</th>
+            <th>Title</th>
+            <th>Assignee</th>
+            <th>Redmine Status</th>
+            <th>Commits</th>
+            <th>Status</th>
+        </tr>
+        </thead>
+        <tbody>
+        {#for item in reportData.items}
+        <tr>
+            <td><a href="{item.task.url}" target="_blank">#{item.task.id}</a></td>
+            <td>{item.task.title}</td>
+            <td>{item.task.assignee}</td>
+            <td><span class="badge">{item.task.status}</span></td>
+            <td style="text-align: center;">{item.foundCommits.size}</td>
+            <td class="status-{item.status}">{item.status}</td>
+        </tr>
+        {/for}
+        </tbody>
+    </table>
+</div>
 
 <h2>Project Inventory</h2>
 <div style="display: flex; gap: 2rem;">
     <div style="flex: 1;">
         <h3>Projects with Activity</h3>
-        <table>
-            <thead>
-            <tr>
-                <th>Project Name</th>
-            </tr>
-            </thead>
-            <tbody>
-            {#for pName in reportData.activeProjects}
-            <tr>
-                <td>{pName}</td>
-            </tr>
-            {/for}
-            </tbody>
-        </table>
+        <div class="table-scroll-container">
+            <table>
+                <thead>
+                <tr>
+                    <th>Project Name</th>
+                </tr>
+                </thead>
+                <tbody>
+                {#for pName in reportData.activeProjects}
+                <tr>
+                    <td>{pName}</td>
+                </tr>
+                {/for}
+                </tbody>
+            </table>
+        </div>
     </div>
     <div style="flex: 1;">
         <h3>Ignored Projects (No Tags)</h3>
-        <table>
-            <thead>
-            <tr>
-                <th>Project Name</th>
-            </tr>
-            </thead>
-            <tbody>
-            {#for pName in reportData.ignoredProjects}
-            <tr>
-                <td style="color: var(--warning);">{pName}</td>
-            </tr>
-            {/for}
-            </tbody>
-        </table>
+        <div class="table-scroll-container">
+            <table>
+                <thead>
+                <tr>
+                    <th>Project Name</th>
+                </tr>
+                </thead>
+                <tbody>
+                {#for pName in reportData.ignoredProjects}
+                <tr>
+                    <td style="color: var(--warning);">{pName}</td>
+                </tr>
+                {/for}
+                </tbody>
+            </table>
+        </div>
     </div>
 </div>
 
 <h2>Orphan Commits</h2>
-<table>
-    <thead>
-    <tr>
-        <th>Hash</th>
-        <th>Author</th>
-        <th>Message</th>
-        <th>Link</th>
-    </tr>
-    </thead>
-    <tbody>
-    {#if reportData.orphanCommits.isEmpty}
-    <tr>
-        <td colspan="4" style="text-align: center; color: var(--success);">No orphan commits found.</td>
-    </tr>
-    {#else}
-    {#for commit in reportData.orphanCommits}
-    <tr>
-        <td style="font-family: monospace;">{commit.hash.substring(0,8)}</td>
-        <td>{commit.author}</td>
-        <td>{commit.message}</td>
-        <td><a href="{commit.url}" target="_blank">View</a></td>
-    </tr>
-    {/for}
-    {/if}
-    </tbody>
-</table>
+<div class="table-scroll-container">
+    <table>
+        <thead>
+        <tr>
+            <th>Hash</th>
+            <th>Author</th>
+            <th>Message</th>
+            <th>Link</th>
+        </tr>
+        </thead>
+        <tbody>
+        {#if reportData.orphanCommits.isEmpty}
+        <tr>
+            <td colspan="4" style="text-align: center; color: var(--success);">No orphan commits found.</td>
+        </tr>
+        {#else}
+        {#for commit in reportData.orphanCommits}
+        <tr>
+            <td style="font-family: monospace;">{commit.hash.substring(0,8)}</td>
+            <td>{commit.author}</td>
+            <td>{commit.message}</td>
+            <td><a href="{commit.url}" target="_blank">View</a></td>
+        </tr>
+        {/for}
+        {/if}
+        </tbody>
+    </table>
+</div>
 
 <script>
     const globalOptions = {
@@ -360,9 +375,34 @@
                 position: 'bottom',
                 labels: {
                     boxWidth: 12,
-                    font: { size: 11 }
+                    font: { size: 11 },
+                    lineWidth: 0,
                 }
             }
+        },
+        elements: {
+            arc: {
+                borderWidth: 0
+            }
+        },
+    };
+
+    const centerTextPlugin = {
+        id: 'centerText',
+        afterDatasetsDraw(chart) {
+            const { ctx, data, chartArea: { top, bottom, left, right, width, height } } = chart;
+            ctx.save();
+
+            const total = data.datasets[0].data.reduce((a, b) => a + b, 0);
+            const value = data.datasets[0].data[0];
+            const percentage = total > 0 ? Math.round((value / total) * 100) + '%' : '0%';
+            const color = data.datasets[0].backgroundColor[0];
+
+            ctx.font = 'bold 1.2rem sans-serif';
+            ctx.fillStyle = color;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(percentage, left + width / 2, top + height / 2);
         }
     };
 
@@ -371,12 +411,13 @@
         data: {
             labels: ['With Tag', 'No Tag'],
             datasets: [{
-                data: [{reportData.scInfo.validProjects}, {reportData.scInfo.validProjects}],
+                data: [{reportData.scInfo.validProjects}, 0],
                 backgroundColor: ['#3498db', '#bdc3c7'],
                 cutout: '60%'
             }]
         },
-        options: donutOptions
+        options: donutOptions,
+        plugins: [centerTextPlugin]
     });
 
     new Chart(document.getElementById('projectsCommitsDonut'), {
@@ -385,11 +426,12 @@
             labels: ['Active', 'Ignored'],
             datasets: [{
                 data: [{reportData.activeProjects.size}, {reportData.ignoredProjects.size}],
-                backgroundColor: ['#3498db', '#bdc3c7'],
+                backgroundColor: ['#2ecc71', '#bdc3c7'],
                 cutout: '60%'
             }]
         },
-        options: donutOptions
+        options: donutOptions,
+        plugins: [centerTextPlugin]
     });
 
     new Chart(document.getElementById('commitsDonut'), {
@@ -398,11 +440,12 @@
             labels: ['Linked', 'Orphan'],
             datasets: [{
                 data: [{reportData.totalLinkedCommits}, {reportData.orphanCommits.size}],
-                backgroundColor: ['#27ae60', '#f1c40f'],
+                backgroundColor: ['#9b59b6', '#bdc3c7'],
                 cutout: '60%'
             }]
         },
-        options: donutOptions
+        options: donutOptions,
+        plugins: [centerTextPlugin]
     });
 
     new Chart(document.getElementById('tasksDonut'), {
@@ -411,11 +454,12 @@
             labels: ['With Commit', 'Missing'],
             datasets: [{
                 data: [{reportData.tasksWithCommitCount}, {reportData.tasksMissingCommitCount}],
-                backgroundColor: ['#27ae60', '#f1c40f'],
+                backgroundColor: ['#e67e22', '#bdc3c7'],
                 cutout: '60%'
             }]
         },
-        options: donutOptions
+        options: donutOptions,
+        plugins: [centerTextPlugin]
     });
 
     new Chart(document.getElementById('tasksChart'), {
