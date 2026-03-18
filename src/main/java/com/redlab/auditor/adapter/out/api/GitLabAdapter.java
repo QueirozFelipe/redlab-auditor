@@ -1,5 +1,6 @@
 package com.redlab.auditor.adapter.out.api;
 
+import com.redlab.auditor.domain.model.ActiveProjectInfo;
 import com.redlab.auditor.domain.model.Commit;
 import com.redlab.auditor.domain.model.Profile;
 import com.redlab.auditor.domain.model.SourceControlInfo;
@@ -12,7 +13,9 @@ import org.gitlab4j.api.models.CompareResults;
 import org.gitlab4j.api.models.Group;
 import org.gitlab4j.api.models.Project;
 
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.concurrent.*;
 import java.util.regex.Matcher;
@@ -24,7 +27,7 @@ public class GitLabAdapter implements SourceControlPort {
 
     private Semaphore rateLimiter;
 
-    private record ProjectResult(List<Commit> commits, String projectName, boolean isValid) {
+    private record ProjectResult(List<Commit> commits, String projectName, boolean isValid, ActiveProjectInfo activeInfo) {
     }
 
     private static final Pattern IGNORE_COMMIT_PATTERN = Pattern.compile(
@@ -44,7 +47,7 @@ public class GitLabAdapter implements SourceControlPort {
             List<Project> projects = gitLabApi.getGroupApi().getProjects(profile.gitlabGroupId());
 
             List<Commit> allCommits = new ArrayList<>();
-            List<String> activeProjects = new ArrayList<>();
+            List<ActiveProjectInfo> activeProjects = new ArrayList<>();
             List<String> ignoredProjects = new ArrayList<>();
 
             try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
@@ -63,7 +66,7 @@ public class GitLabAdapter implements SourceControlPort {
                     if (!pr.isValid()) {
                         ignoredProjects.add(pr.projectName());
                     } else if (!pr.commits().isEmpty()) {
-                        activeProjects.add(pr.projectName());
+                        activeProjects.add(pr.activeInfo());
                     }
                 }
             }
@@ -114,10 +117,35 @@ public class GitLabAdapter implements SourceControlPort {
 
                     List<Commit> commits = comparison.getCommits().stream()
                             .filter(this::isMeaningfulCommit)
-                            .map(gitlabCommit -> mapToDomainCommit(gitlabCommit, profile.taskRegex()))
+                            .map(gitlabCommit -> mapToDomainCommit(gitlabCommit, profile.taskRegex(), project.getName()))
                             .collect(Collectors.toList());
 
-                    return new ProjectResult(commits, project.getName(), true);
+                    ActiveProjectInfo activeInfo = null;
+
+                    if (!commits.isEmpty()) {
+                        String lastDate = comparison.getCommits().stream()
+                                .map(org.gitlab4j.api.models.Commit::getCommittedDate)
+                                .filter(java.util.Objects::nonNull)
+                                .max(Date::compareTo)
+                                .map(date -> new SimpleDateFormat("yyyy-MM-dd HH:mm").format(date))
+                                .orElse("N/A");
+
+                        long uniqueTasksCount = commits.stream()
+                                .flatMap(c -> c.associatedTaskIds().stream())
+                                .distinct()
+                                .count();
+
+                        activeInfo = new ActiveProjectInfo(
+                                project.getName(),
+                                source,
+                                target,
+                                String.valueOf(commits.size()),
+                                lastDate,
+                                String.valueOf(uniqueTasksCount)
+                        );
+                    }
+
+                    return new ProjectResult(commits, project.getName(), true, activeInfo);
 
                 } catch (GitLabApiException e) {
                     if (e.getHttpStatus() == 404) {
@@ -128,8 +156,8 @@ public class GitLabAdapter implements SourceControlPort {
                 }
             }
         }
-        // If valid branches were not found
-        return new ProjectResult(List.of(), project.getName(), false);
+
+        return new ProjectResult(List.of(), project.getName(), false, null);
     }
 
     private boolean isMeaningfulCommit(org.gitlab4j.api.models.Commit commit) {
@@ -137,12 +165,13 @@ public class GitLabAdapter implements SourceControlPort {
         return !IGNORE_COMMIT_PATTERN.matcher(commit.getMessage().trim()).find();
     }
 
-    private Commit mapToDomainCommit(org.gitlab4j.api.models.Commit gitlabCommit, String regex) {
+    private Commit mapToDomainCommit(org.gitlab4j.api.models.Commit gitlabCommit, String regex, String projectName) {
         List<String> associatedTasks = extractTaskIdsFromMessage(gitlabCommit.getMessage(), regex);
         return new Commit(
                 gitlabCommit.getId(),
                 gitlabCommit.getMessage(),
                 gitlabCommit.getAuthorName(),
+                projectName,
                 associatedTasks,
                 gitlabCommit.getWebUrl()
         );

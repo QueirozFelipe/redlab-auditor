@@ -38,8 +38,9 @@
         .text-muted { color: #95a5a6; font-size: 0.8em; }
 
         /* Graphs */
-        .donut-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.5rem; margin-bottom: 2rem; }
+        .donut-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.5rem; border-bottom: 2px solid #eee; padding-bottom: 1.2rem; margin-bottom: 1.2rem; }
         .chart-container { background: white; padding: 1.5rem; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 1.5rem; }
+        .chart-container canvas { max-height: 400px !important; width: 100% !important; margin: 0 auto; }
         .donut-container { text-align: center; }
         .donut-container canvas { max-height: 160px !important; width: 100% !important; margin: 0 auto; }
 
@@ -133,7 +134,7 @@
     </div>
 </div>
 
-<h2 class="section-heading">Audit Summary</h2>
+<h2 class="section-heading">Audit Overview</h2>
 
 <div class="summary-grid">
     <div class="summary-card">
@@ -187,11 +188,11 @@
                 <span class="summary-value">{reportData.scInfo.totalProjects}</span>
             </li>
             <li>
-                <span class="summary-label">Valid Projects (With Tags)</span>
+                <span class="summary-label">Valid Projects</span>
                 <span class="summary-value">{reportData.scInfo.validProjects}</span>
             </li>
             <li>
-                <span class="summary-label">Projects with New Commits</span>
+                <span class="summary-label">Projects with Activity</span>
                 <span class="summary-value">{reportData.scInfo.activeProjectsCount}</span>
             </li>
             <li>
@@ -208,11 +209,11 @@
 
 <div class="donut-grid">
     <div class="donut-container">
-        <p><strong>Projects with Tags</strong></p>
+        <p><strong>Projects with Valid Branches</strong></p>
         <canvas id="projectsTagsDonut"></canvas>
     </div>
     <div class="donut-container">
-        <p><strong>Projects with New Commits</strong></p>
+        <p><strong>Projects with Activity</strong></p>
         <canvas id="projectsCommitsDonut"></canvas>
     </div>
     <div class="donut-container">
@@ -220,22 +221,108 @@
         <canvas id="commitsDonut"></canvas>
     </div>
     <div class="donut-container">
-        <p><strong>Tasks Validated (with Commit)</strong></p>
+        <p><strong>Validated Tasks</strong></p>
         <canvas id="tasksDonut"></canvas>
     </div>
 </div>
 
-<h2>Commits per Task</h2>
+<h2>Projects with Activity</h2>
+<div class="table-scroll-container">
+    <table>
+        <thead>
+        <tr>
+            <th>Project Name</th>
+            <th>Source Branch</th>
+            <th>Target Branch</th>
+            <th style="text-align: center;">Total Commits</th>
+            <th>Last Committed At</th>
+            <th style="text-align: center;">Related Tasks</th>
+        </tr>
+        </thead>
+        <tbody>
+        {#for project in reportData.activeProjects}
+        <tr>
+            <td><strong>{project.projectName}</strong></td>
+            <td><span class="badge">{project.sourceBranch}</span></td>
+            <td><span class="badge">{project.targetBranch}</span></td>
+            <td style="text-align: center;">{project.totalCommits}</td>
+            <td>{project.lastCommitedOn}</td>
+            <td style="text-align: center;">{project.totalRelatedTasks}</td>
+        </tr>
+        {/for}
+        </tbody>
+    </table>
+</div>
+
+<h2>Ignored Projects - Branch Missing</h2>
+<div class="table-scroll-container">
+    <table>
+        <thead>
+        <tr>
+            <th>Project Name</th>
+        </tr>
+        </thead>
+        <tbody>
+        {#if reportData.ignoredProjects.isEmpty}
+        <tr>
+            <td style="text-align: center; color: var(--success); font-weight: 500;">
+                No projects ignored, you're good to go! 🎉
+            </td>
+        </tr>
+        {#else}
+        {#for pName in reportData.ignoredProjects}
+        <tr>
+            <td style="color: var(--warning);">{pName}</td>
+        </tr>
+        {/for}
+        {/if}
+        </tbody>
+    </table>
+</div>
+
+
+<h2>Orphan Commits</h2>
+<div class="table-scroll-container">
+    <table>
+        <thead>
+        <tr>
+            <th>Hash</th>
+            <th>Project</th>
+            <th>Author</th>
+            <th>Message</th>
+        </tr>
+        </thead>
+        <tbody>
+        {#if reportData.orphanCommits.isEmpty}
+        <tr>
+            <td colspan="4" style="text-align: center; color: var(--success);">No orphan commits found.</td>
+        </tr>
+        {#else}
+        {#for commit in reportData.orphanCommits}
+        <tr>
+            <td style="font-family: monospace;"><a href="{commit.url}" target="_blank">{commit.hash.substring(0,8)}</a>
+            </td>
+            <td>{commit.projectName}</td>
+            <td>{commit.author}</td>
+            <td>{commit.message}</td>
+        </tr>
+        {/for}
+        {/if}
+        </tbody>
+    </table>
+</div>
+
+<h2>Top 10 Most Active Tasks</h2>
 <div class="chart-container">
     <canvas id="tasksChart"></canvas>
 </div>
 
-<h2>Activity per Developer (Commits)</h2>
+<h2>Activity per Developer</h2>
 <div class="chart-container">
     <canvas id="devCommitsChart"></canvas>
 </div>
 
-<h2>Responsibility per Assignee (Tasks)</h2>
+<h2>Responsibility per Assignee</h2>
 <div class="chart-container">
     <canvas id="assigneeTasksChart"></canvas>
 </div>
@@ -268,78 +355,6 @@
     </table>
 </div>
 
-<h2>Project Inventory</h2>
-<div style="display: flex; gap: 2rem;">
-    <div style="flex: 1;">
-        <h3>Projects with Activity</h3>
-        <div class="table-scroll-container">
-            <table>
-                <thead>
-                <tr>
-                    <th>Project Name</th>
-                </tr>
-                </thead>
-                <tbody>
-                {#for pName in reportData.activeProjects}
-                <tr>
-                    <td>{pName}</td>
-                </tr>
-                {/for}
-                </tbody>
-            </table>
-        </div>
-    </div>
-    <div style="flex: 1;">
-        <h3>Ignored Projects (No Tags)</h3>
-        <div class="table-scroll-container">
-            <table>
-                <thead>
-                <tr>
-                    <th>Project Name</th>
-                </tr>
-                </thead>
-                <tbody>
-                {#for pName in reportData.ignoredProjects}
-                <tr>
-                    <td style="color: var(--warning);">{pName}</td>
-                </tr>
-                {/for}
-                </tbody>
-            </table>
-        </div>
-    </div>
-</div>
-
-<h2>Orphan Commits</h2>
-<div class="table-scroll-container">
-    <table>
-        <thead>
-        <tr>
-            <th>Hash</th>
-            <th>Author</th>
-            <th>Message</th>
-            <th>Link</th>
-        </tr>
-        </thead>
-        <tbody>
-        {#if reportData.orphanCommits.isEmpty}
-        <tr>
-            <td colspan="4" style="text-align: center; color: var(--success);">No orphan commits found.</td>
-        </tr>
-        {#else}
-        {#for commit in reportData.orphanCommits}
-        <tr>
-            <td style="font-family: monospace;">{commit.hash.substring(0,8)}</td>
-            <td>{commit.author}</td>
-            <td>{commit.message}</td>
-            <td><a href="{commit.url}" target="_blank">View</a></td>
-        </tr>
-        {/for}
-        {/if}
-        </tbody>
-    </table>
-</div>
-
 <script>
     const globalOptions = {
         responsive: true,
@@ -364,6 +379,20 @@
                     stepSize: 1,
                     precision: 0
                 }
+            }
+        }
+    };
+
+    const horizontalBarOptions = {
+        ...globalOptions,
+        indexAxis: 'y',
+        scales: {
+            x: {
+                beginAtZero: true,
+                ticks: { stepSize: 1, precision: 0 }
+            },
+            y: {
+                ticks: { autoSkip: false }
             }
         }
     };
@@ -406,12 +435,15 @@
         }
     };
 
+    const validProjects = {reportData.scInfo.validProjects};
+    const missingBranchProjects= {reportData.scInfo.totalProjects} - validProjects;
+
     new Chart(document.getElementById('projectsTagsDonut'), {
         type: 'doughnut',
         data: {
-            labels: ['With Tag', 'No Tag'],
+            labels: ['Valid', 'Branch Missing'],
             datasets: [{
-                data: [{reportData.scInfo.validProjects}, 0],
+                data: [validProjects, missingBranchProjects],
                 backgroundColor: ['#3498db', '#bdc3c7'],
                 cutout: '60%'
             }]
@@ -423,7 +455,7 @@
     new Chart(document.getElementById('projectsCommitsDonut'), {
         type: 'doughnut',
         data: {
-            labels: ['Active', 'Ignored'],
+            labels: ['Commited', 'Unchanged'],
             datasets: [{
                 data: [{reportData.activeProjects.size}, {reportData.ignoredProjects.size}],
                 backgroundColor: ['#2ecc71', '#bdc3c7'],
@@ -462,18 +494,27 @@
         plugins: [centerTextPlugin]
     });
 
+    const taskData = [
+        {#for item in reportData.items}
+        { id: '#{item.task.id}', commits: {item.foundCommits.size} },
+        {/for}
+    ];
+
+    taskData.sort((a, b) => b.commits - a.commits);
+    const top10Tasks = taskData.slice(0, 10);
+
     new Chart(document.getElementById('tasksChart'), {
         type: 'bar',
         data: {
-            labels: [{#for item in reportData.items}'#{item.task.id}',{/for}],
+            labels: top10Tasks.map(t => t.id),
             datasets: [{
                 label: 'Commits',
-                data: [{#for item in reportData.items}{item.foundCommits.size},{/for}],
-                backgroundColor: '#3498db',
+                data: top10Tasks.map(t => t.commits),
+                backgroundColor: '#e67e22',
                 maxBarThickness: 30
             }]
         },
-        options: barOptions
+        options: horizontalBarOptions
     });
 
     new Chart(document.getElementById('devCommitsChart'), {

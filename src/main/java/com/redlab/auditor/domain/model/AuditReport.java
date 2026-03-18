@@ -11,7 +11,7 @@ public record AuditReport(
         List<AuditReportItem> items,
         long totalCommitsCount,
         List<Commit> orphanCommits,
-        List<String> activeProjects,
+        List<ActiveProjectInfo> activeProjects,
         List<String> ignoredProjects,
         long totalLinkedCommits,
         long tasksWithCommitCount,

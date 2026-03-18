@@ -5,6 +5,7 @@ import java.util.List;
 public record Commit(String hash,
                      String message,
                      String author,
+                     String projectName,
                      List<String> associatedTaskIds,
                      String url) {
 }
