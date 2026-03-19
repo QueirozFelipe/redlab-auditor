@@ -12,6 +12,7 @@ public record Profile(
         String gitlabToken,
         String gitlabGroupId,
         int gitlabRateLimit,
+        List<Long> projectsToIgnore,
         List<String> sourceBranches,
         List<String> targetBranches,
         String taskRegex

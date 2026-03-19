@@ -76,13 +76,20 @@ public class MockSourceControlAdapter implements SourceControlPort {
                 new ActiveProjectInfo("notification-worker", "dev", "main", "20", "2026-03-16 16:45", "4")
         );
 
-        List<String> ignoredProjects = List.of(
+        List<String> missingBranchProjects = List.of(
                 "legacy-xml-parser",
                 "poc-archived-app"
         );
 
+        List<String> ignoredByUserProjects = List.of(
+                "legacy-auth-service-v1",
+                "sandbox-poc",
+                "company-shared-assets",
+                "infrastructure-as-code-bak"
+        );
+
         SourceControlInfo scInfo = new SourceControlInfo("Mock", "http://mock-gitlab", "Group", "1", 6, 4, 4);
 
-        return new SourceControlResult(scInfo, commits, activeProjects, ignoredProjects);
+        return new SourceControlResult(scInfo, commits, activeProjects, missingBranchProjects, ignoredByUserProjects);
     }
 }

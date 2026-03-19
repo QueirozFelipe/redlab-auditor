@@ -9,5 +9,6 @@ import java.util.List;
 public record SourceControlResult(SourceControlInfo scInfo,
                                   List<Commit> commits,
                                   List<ActiveProjectInfo> activeProjects,
-                                  List<String> ignoredProjects) {
+                                  List<String> missingBranchProjects,
+                                  List<String> ignoredByUserProjects) {
 }

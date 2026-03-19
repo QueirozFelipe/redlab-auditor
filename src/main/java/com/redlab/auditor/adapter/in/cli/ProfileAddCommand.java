@@ -9,6 +9,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @CommandLine.Command(name = "add", description = "Adds a new configuration profile.")
@@ -46,11 +47,14 @@ public class ProfileAddCommand implements Runnable {
         System.out.println("Gitlab Rate Limit: ");
         int gitlabRateLimit = Integer.parseInt(scanner.nextLine());
 
+        System.out.println("Project To Be Ignored (IDs, separated by commas, e.g: 7,9,13): ");
+        List<Long> projectsToIgnore = parseList(scanner.nextLine(), Long::parseLong);
+
         System.out.print("Source Branches (Separated by commas, e.g: dev,develop): ");
-        List<String> sourceBranches = parseList(scanner.nextLine());
+        List<String> sourceBranches = parseList(scanner.nextLine(), Function.identity());
 
         System.out.print("Target Branches (Separated by commas, e.g: main,master): ");
-        List<String> targetBranches = parseList(scanner.nextLine());
+        List<String> targetBranches = parseList(scanner.nextLine(), Function.identity());
 
         System.out.println("Commit Pattern Regex: ");
         String taskRegex = scanner.nextLine();
@@ -63,6 +67,7 @@ public class ProfileAddCommand implements Runnable {
                 gitlabToken,
                 gitlabGroupId,
                 gitlabRateLimit,
+                projectsToIgnore,
                 sourceBranches,
                 targetBranches,
                 taskRegex);
@@ -74,13 +79,14 @@ public class ProfileAddCommand implements Runnable {
         System.out.println("Profile " + name + " successfully saved.");
     }
 
-    private List<String> parseList(String input) {
+    private <T> List<T> parseList(String input, Function<String, T> mapper) {
         if (input == null || input.isBlank()) {
             return List.of();
         }
         return Arrays.stream(input.split(","))
                 .map(String::trim)
                 .filter(s -> !s.isEmpty())
+                .map(mapper)
                 .collect(Collectors.toList());
     }
 }

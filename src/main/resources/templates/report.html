@@ -45,6 +45,9 @@
         .donut-container canvas { max-height: 160px !important; width: 100% !important; margin: 0 auto; }
 
         /* Tables and General Elements */
+        .ignored-list-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 2rem; margin-top: 2rem; margin-bottom: 2rem; }
+        .ignored-section { display: flex; flex-direction: column; }
+        .ignored-section h2 { margin-top: 0; font-size: 1.3rem; }
         .table-scroll-container { max-height: 400px; overflow-y: auto; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 2rem; background: white; border: 1px solid #eee; }
         .table-scroll-container th { position: sticky; top: 0; z-index: 10; background-color: var(--primary-color); }
         table { width: 100%; border-collapse: collapse; background: white; }
@@ -188,16 +191,16 @@
                 <span class="summary-value">{reportData.scInfo.totalProjects}</span>
             </li>
             <li>
-                <span class="summary-label">Valid Projects</span>
-                <span class="summary-value">{reportData.scInfo.validProjects}</span>
+                <span class="summary-label">Audited Projects</span>
+                <span class="summary-value">{reportData.scInfo.auditedProjects}</span>
+            </li>
+            <li>
+                <span class="summary-label">Ignored Projects</span>
+                <span class="summary-value">{reportData.scInfo.totalProjects - reportData.scInfo.auditedProjects}</span>
             </li>
             <li>
                 <span class="summary-label">Projects with Activity</span>
                 <span class="summary-value">{reportData.scInfo.activeProjectsCount}</span>
-            </li>
-            <li>
-                <span class="summary-label">Orphan Commits Detected</span>
-                <span class="summary-value">{reportData.orphanCommits.size}</span>
             </li>
         </ul>
         <div class="summary-footer">
@@ -209,8 +212,8 @@
 
 <div class="donut-grid">
     <div class="donut-container">
-        <p><strong>Projects with Valid Branches</strong></p>
-        <canvas id="projectsTagsDonut"></canvas>
+        <p><strong>Audited Projects</strong></p>
+        <canvas id="auditedProjectsDonut"></canvas>
     </div>
     <div class="donut-container">
         <p><strong>Projects with Activity</strong></p>
@@ -254,32 +257,43 @@
     </table>
 </div>
 
-<h2>Ignored Projects - Branch Missing</h2>
-<div class="table-scroll-container">
-    <table>
-        <thead>
-        <tr>
-            <th>Project Name</th>
-        </tr>
-        </thead>
-        <tbody>
-        {#if reportData.ignoredProjects.isEmpty}
-        <tr>
-            <td style="text-align: center; color: var(--success); font-weight: 500;">
-                No projects ignored, you're good to go! 🎉
-            </td>
-        </tr>
-        {#else}
-        {#for pName in reportData.ignoredProjects}
-        <tr>
-            <td style="color: var(--warning);">{pName}</td>
-        </tr>
-        {/for}
-        {/if}
-        </tbody>
-    </table>
-</div>
+{#if !reportData.missingBranchProjects.isEmpty || !reportData.ignoredByUserProjects.isEmpty}
+<div class="ignored-list-grid">
 
+    {#if !reportData.missingBranchProjects.isEmpty}
+    <div class="ignored-section">
+        <h2>Ignored Projects - Branch Missing</h2>
+        <div class="table-scroll-container">
+            <table>
+                <thead><tr><th>Project Name</th></tr></thead>
+                <tbody>
+                {#for pName in reportData.missingBranchProjects}
+                <tr><td style="color: var(--warning);">{pName}</td></tr>
+                {/for}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {/if}
+
+    {#if !reportData.ignoredByUserProjects.isEmpty}
+    <div class="ignored-section">
+        <h2>Ignored Projects - User Profile</h2>
+        <div class="table-scroll-container">
+            <table>
+                <thead><tr><th>Project Name</th></tr></thead>
+                <tbody>
+                {#for pName in reportData.ignoredByUserProjects}
+                <tr><td style="color: var(--secondary-color);">{pName}</td></tr>
+                {/for}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {/if}
+
+</div>
+{/if}
 
 <h2>Orphan Commits</h2>
 <div class="table-scroll-container">
@@ -435,15 +449,19 @@
         }
     };
 
-    const validProjects = {reportData.scInfo.validProjects};
-    const missingBranchProjects= {reportData.scInfo.totalProjects} - validProjects;
+    const totalProjects = Number('{reportData.scInfo.totalProjects}');
+    const auditedProjects = Number('{reportData.scInfo.auditedProjects}');
+    const activeProjectsCount = Number('{reportData.activeProjects.size}');
 
-    new Chart(document.getElementById('projectsTagsDonut'), {
+    const ignoredProjects = totalProjects - auditedProjects;
+    const unchangedProjects = totalProjects - activeProjectsCount;
+
+    new Chart(document.getElementById('auditedProjectsDonut'), {
         type: 'doughnut',
         data: {
-            labels: ['Valid', 'Branch Missing'],
+            labels: ['Audited', 'Ignored'],
             datasets: [{
-                data: [validProjects, missingBranchProjects],
+                data: [auditedProjects, ignoredProjects],
                 backgroundColor: ['#3498db', '#bdc3c7'],
                 cutout: '60%'
             }]
@@ -457,7 +475,7 @@
         data: {
             labels: ['Commited', 'Unchanged'],
             datasets: [{
-                data: [{reportData.activeProjects.size}, {reportData.ignoredProjects.size}],
+                data: [activeProjectsCount, unchangedProjects],
                 backgroundColor: ['#2ecc71', '#bdc3c7'],
                 cutout: '60%'
             }]

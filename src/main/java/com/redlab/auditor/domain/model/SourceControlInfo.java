@@ -5,6 +5,6 @@ public record SourceControlInfo(String providerName,
                                 String groupName,
                                 String groupId,
                                 int totalProjects,
-                                int validProjects,
+                                int auditedProjects,
                                 int activeProjectsCount) {
 }

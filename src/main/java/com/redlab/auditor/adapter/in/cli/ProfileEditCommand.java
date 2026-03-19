@@ -10,6 +10,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Command(name = "edit", description = "Edits an existing profile.")
@@ -45,16 +46,24 @@ public class ProfileEditCommand implements Runnable {
 
         int gRateLimit = Integer.parseInt(ask(scanner, "Gitlab Rate Limit", String.valueOf(p.gitlabRateLimit())));
 
+        String currentIgnoredStr = (p.projectsToIgnore() != null && !p.projectsToIgnore().isEmpty())
+                ? p.projectsToIgnore().stream().map(String::valueOf).collect(Collectors.joining(", "))
+                : "";
+
+        List<Long> projectsToIgnore =
+                parseList(ask(scanner, "Projects To Ignore", currentIgnoredStr), Long::parseLong);
+
         String currentSourceStr = String.join(", ", p.sourceBranches());
         String currentTargetStr = String.join(", ", p.targetBranches());
-        List<String> sourceBranches = parseList(ask(scanner, "Source Branches", currentSourceStr));
-        List<String> targetBranches = parseList(ask(scanner, "Target Branches", currentTargetStr));
+        List<String> sourceBranches = parseList(ask(scanner, "Source Branches", currentSourceStr), Function.identity());
+        List<String> targetBranches = parseList(ask(scanner, "Target Branches", currentTargetStr), Function.identity());
 
         String regex = ask(scanner, "Task Regex", p.taskRegex());
 
         Profile updatedProfile = new Profile(
                 profileName, url, rToken, rTrackers, gUrl, gToken,
-                gGroupId, gRateLimit, sourceBranches, targetBranches, regex
+                gGroupId, gRateLimit, projectsToIgnore, sourceBranches,
+                targetBranches, regex
         );
 
         profiles.put(profileName, updatedProfile);
@@ -81,13 +90,14 @@ public class ProfileEditCommand implements Runnable {
         return token.substring(0, 4) + "****" + token.substring(token.length() - 4);
     }
 
-    private List<String> parseList(String input) {
+    private <T> List<T> parseList(String input, Function<String, T> mapper) {
         if (input == null || input.isBlank()) {
             return List.of();
         }
         return Arrays.stream(input.split(","))
                 .map(String::trim)
                 .filter(s -> !s.isEmpty())
+                .map(mapper)
                 .collect(Collectors.toList());
     }
 }

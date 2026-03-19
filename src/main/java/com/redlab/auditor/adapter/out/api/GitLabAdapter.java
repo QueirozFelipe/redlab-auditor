@@ -44,15 +44,25 @@ public class GitLabAdapter implements SourceControlPort {
             String groupName = group.getName();
             String groupId = String.valueOf(group.getId());
 
-            List<Project> projects = gitLabApi.getGroupApi().getProjects(profile.gitlabGroupId());
+            List<Project> allProjects = gitLabApi.getGroupApi().getProjects(profile.gitlabGroupId());
+            List<String> ignoredByUserProjects = new ArrayList<>();
+            List<Project> projectsToAudit = new ArrayList<>();
+
+            for (Project p : allProjects) {
+                if (profile.projectsToIgnore() != null && profile.projectsToIgnore().contains(p.getId())) {
+                    ignoredByUserProjects.add(p.getName());
+                } else {
+                    projectsToAudit.add(p);
+                }
+            }
 
             List<Commit> allCommits = new ArrayList<>();
             List<ActiveProjectInfo> activeProjects = new ArrayList<>();
-            List<String> ignoredProjects = new ArrayList<>();
+            List<String> missingBranchProjects = new ArrayList<>();
 
             try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
 
-                List<Callable<ProjectResult>> tasks = projects.stream()
+                List<Callable<ProjectResult>> tasks = projectsToAudit.stream()
                         .map(project -> (Callable<ProjectResult>) () -> processProject(gitLabApi, project, profile, sourceBranches, targetBranches))
                         .toList();
 
@@ -64,15 +74,15 @@ public class GitLabAdapter implements SourceControlPort {
                     allCommits.addAll(pr.commits());
 
                     if (!pr.isValid()) {
-                        ignoredProjects.add(pr.projectName());
+                        missingBranchProjects.add(pr.projectName());
                     } else if (!pr.commits().isEmpty()) {
                         activeProjects.add(pr.activeInfo());
                     }
                 }
             }
 
-            int totalProjects = projects.size();
-            int validProjectsCount = totalProjects - ignoredProjects.size();
+            int totalProjects = allProjects.size();
+            int validProjectsCount = totalProjects - missingBranchProjects.size() - ignoredByUserProjects.size();
 
             SourceControlInfo scInfo = new SourceControlInfo(
                     "GitLab",
@@ -84,7 +94,7 @@ public class GitLabAdapter implements SourceControlPort {
                     activeProjects.size()
             );
 
-            return new SourceControlResult(scInfo, allCommits, activeProjects, ignoredProjects);
+            return new SourceControlResult(scInfo, allCommits, activeProjects, missingBranchProjects, ignoredByUserProjects);
 
         } catch (GitLabApiException | InterruptedException | ExecutionException e) {
             if (e instanceof InterruptedException) {
