@@ -5,6 +5,8 @@ import java.util.List;
 
 public record Profile(
         String name,
+        ProjectManagerType pmType,
+        SourceControlType scType,
         String redmineUrl,
         String redmineToken,
         String redmineTrackers,

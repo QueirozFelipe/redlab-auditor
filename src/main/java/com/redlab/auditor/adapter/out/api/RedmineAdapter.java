@@ -10,6 +10,7 @@ import com.taskadapter.redmineapi.*;
 import com.taskadapter.redmineapi.bean.Issue;
 import com.taskadapter.redmineapi.bean.Version;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Named;
 
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -18,6 +19,7 @@ import java.util.stream.Collectors;
 import static java.util.Optional.ofNullable;
 
 @ApplicationScoped
+@Named("REDMINE")
 public class RedmineAdapter implements ProjectManagerPort {
 
     @Override

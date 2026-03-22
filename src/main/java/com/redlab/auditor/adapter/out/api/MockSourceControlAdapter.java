@@ -6,17 +6,15 @@ import com.redlab.auditor.domain.model.Profile;
 import com.redlab.auditor.domain.model.SourceControlInfo;
 import com.redlab.auditor.usecase.port.out.SourceControlPort;
 import com.redlab.auditor.usecase.port.out.SourceControlResult;
-import jakarta.annotation.Priority;
 import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.enterprise.inject.Alternative;
+import jakarta.inject.Named;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
 @ApplicationScoped
-@Alternative
-@Priority(1)
+@Named("SC_MOCK")
 public class MockSourceControlAdapter implements SourceControlPort {
 
     @Override

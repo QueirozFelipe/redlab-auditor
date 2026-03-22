@@ -2,6 +2,8 @@ package com.redlab.auditor.usecase;
 
 import com.redlab.auditor.domain.model.*;
 import com.redlab.auditor.infrastructure.security.ProfileStorageService;
+import com.redlab.auditor.usecase.factory.ProjectManagerFactory;
+import com.redlab.auditor.usecase.factory.SourceControlFactory;
 import com.redlab.auditor.usecase.port.in.AuditCommandPort;
 import com.redlab.auditor.usecase.port.out.*;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -16,8 +18,8 @@ import java.util.stream.Collectors;
 @ApplicationScoped
 public class GenerateAuditReportUseCase implements AuditCommandPort {
 
-    private final ProjectManagerPort projectManagerPort;
-    private final SourceControlPort sourceControlPort;
+    private final ProjectManagerFactory projectManagerFactory;
+    private final SourceControlFactory sourceControlFactory;
     private final ReportGeneratorPort reportGeneratorPort;
     private final ProfileStorageService profileStorageService;
     @ConfigProperty(name = "quarkus.application.version")
@@ -25,12 +27,12 @@ public class GenerateAuditReportUseCase implements AuditCommandPort {
 
     @Inject
     public GenerateAuditReportUseCase(
-            ProjectManagerPort projectManagerPort,
-            SourceControlPort sourceControlPort,
+            SourceControlFactory scFactory,
+            ProjectManagerFactory pmFactory,
             ReportGeneratorPort reportGeneratorPort,
             ProfileStorageService profileStorageService) {
-        this.projectManagerPort = projectManagerPort;
-        this.sourceControlPort = sourceControlPort;
+        this.sourceControlFactory = scFactory;
+        this.projectManagerFactory = pmFactory;
         this.reportGeneratorPort = reportGeneratorPort;
         this.profileStorageService = profileStorageService;
     }
@@ -40,7 +42,10 @@ public class GenerateAuditReportUseCase implements AuditCommandPort {
         Profile profile = profileStorageService.loadProfiles().get(profileName);
         if (profile == null) throw new RuntimeException("Profile not found: " + profileName);
 
-        ProjectManagerResult pmResult = projectManagerPort.fetchTasksByVersion(profile, version);
+        SourceControlPort scPort = sourceControlFactory.getAdapter(profile.scType());
+        ProjectManagerPort pmPort = projectManagerFactory.getAdapter(profile.pmType());
+
+        ProjectManagerResult pmResult = pmPort.fetchTasksByVersion(profile, version);
         ProjectManagerInfo pmInfo = pmResult.pmInfo();
         List<Task> tasks = pmResult.tasks();
 
@@ -49,7 +54,7 @@ public class GenerateAuditReportUseCase implements AuditCommandPort {
         Map<String, Long> tasksPerAssignee = tasks.stream()
                 .collect(Collectors.groupingBy(Task::assignee, Collectors.counting()));
 
-        SourceControlResult scResult = sourceControlPort.compareBranches(profile, sourceBranches, targetBranches);
+        SourceControlResult scResult = scPort.compareBranches(profile, sourceBranches, targetBranches);
         SourceControlInfo scInfo = scResult.scInfo();
         List<Commit> commits = scResult.commits();
 

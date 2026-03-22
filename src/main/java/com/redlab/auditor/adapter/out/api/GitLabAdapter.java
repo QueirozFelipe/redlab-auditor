@@ -7,6 +7,7 @@ import com.redlab.auditor.domain.model.SourceControlInfo;
 import com.redlab.auditor.usecase.port.out.SourceControlPort;
 import com.redlab.auditor.usecase.port.out.SourceControlResult;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Named;
 import org.gitlab4j.api.GitLabApi;
 import org.gitlab4j.api.GitLabApiException;
 import org.gitlab4j.api.models.CompareResults;
@@ -23,6 +24,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @ApplicationScoped
+@Named("GITLAB")
 public class GitLabAdapter implements SourceControlPort {
 
     private Semaphore rateLimiter;

@@ -1,6 +1,8 @@
 package com.redlab.auditor.adapter.in.cli;
 
 import com.redlab.auditor.domain.model.Profile;
+import com.redlab.auditor.domain.model.ProjectManagerType;
+import com.redlab.auditor.domain.model.SourceControlType;
 import com.redlab.auditor.infrastructure.security.ProfileStorageService;
 import jakarta.inject.Inject;
 import picocli.CommandLine;
@@ -26,40 +28,66 @@ public class ProfileAddCommand implements Runnable {
         System.out.print("Profile Name: ");
         String name = scanner.nextLine();
 
-        System.out.print("Redmine URL: ");
-        String redmineUrl = scanner.nextLine();
+        // 1. SELEÇÃO PM
+        System.out.println("\nSelect Project Manager (1-Redmine, 2-Jira, 3-Mock): ");
+        int pmOption = Integer.parseInt(scanner.nextLine());
+        ProjectManagerType pmType = ProjectManagerType.fromId(pmOption);
 
-        System.out.println("Redmine Token: ");
-        String redmineToken = scanner.nextLine();
+        // DECLARE ANTES COM VALORES DEFAULT
+        String redmineUrl = "";
+        String redmineToken = "";
+        String redmineTrackers = "";
 
-        System.out.println("Redmine Trackers (Separated by commas, empty = all): ");
-        String redmineTrackers = scanner.nextLine();
+        if (pmType == ProjectManagerType.REDMINE) {
+            System.out.print("Redmine URL: ");
+            redmineUrl = scanner.nextLine();
+            System.out.print("Redmine Token: ");
+            redmineToken = scanner.nextLine();
+            System.out.print("Redmine Trackers: ");
+            redmineTrackers = scanner.nextLine();
+        }
 
-        System.out.println("Gitlab URL: ");
-        String gitlabUrl = scanner.nextLine();
+        System.out.println("\nSelect Source Control (1-GitLab, 2-Github, 3-Mock): ");
+        int scOption = Integer.parseInt(scanner.nextLine());
+        SourceControlType scType = SourceControlType.fromId(scOption);
 
-        System.out.println("Gitlab Token: ");
-        String gitlabToken = scanner.nextLine();
+        String gitlabUrl = "";
+        String gitlabToken = "";
+        String gitlabGroupId = "";
+        int gitlabRateLimit = 10;
+        List<Long> projectsToIgnore = List.of();
+        List<String> sourceBranches = List.of();
+        List<String> targetBranches = List.of();
+        String taskRegex = "";
 
-        System.out.println("Gitlab Group ID: ");
-        String gitlabGroupId = scanner.nextLine();
+        if (scType == SourceControlType.GITLAB) {
+            System.out.print("Gitlab URL: ");
+            gitlabUrl = scanner.nextLine();
+            System.out.print("Gitlab Token: ");
+            gitlabToken = scanner.nextLine();
+            System.out.print("Gitlab Group ID: ");
+            gitlabGroupId = scanner.nextLine();
+            System.out.print("Gitlab Rate Limit [10]: ");
+            String rateStr = scanner.nextLine();
+            gitlabRateLimit = rateStr.isBlank() ? 10 : Integer.parseInt(rateStr);
 
-        System.out.println("Gitlab Rate Limit: ");
-        int gitlabRateLimit = Integer.parseInt(scanner.nextLine());
+            System.out.print("Project IDs to Ignore: ");
+            projectsToIgnore = parseList(scanner.nextLine(), Long::parseLong);
 
-        System.out.println("Project To Be Ignored (IDs, separated by commas, e.g: 7,9,13): ");
-        List<Long> projectsToIgnore = parseList(scanner.nextLine(), Long::parseLong);
+            System.out.print("Source Branches (dev,develop): ");
+            sourceBranches = parseList(scanner.nextLine(), Function.identity());
 
-        System.out.print("Source Branches (Separated by commas, e.g: dev,develop): ");
-        List<String> sourceBranches = parseList(scanner.nextLine(), Function.identity());
+            System.out.print("Target Branches (main,master): ");
+            targetBranches = parseList(scanner.nextLine(), Function.identity());
 
-        System.out.print("Target Branches (Separated by commas, e.g: main,master): ");
-        List<String> targetBranches = parseList(scanner.nextLine(), Function.identity());
+            System.out.print("Commit Pattern Regex: ");
+            taskRegex = scanner.nextLine();
+        }
 
-        System.out.println("Commit Pattern Regex: ");
-        String taskRegex = scanner.nextLine();
-
-        Profile newProfile = new Profile(name,
+        Profile newProfile = new Profile(
+                name,
+                pmType,
+                scType,
                 redmineUrl,
                 redmineToken,
                 redmineTrackers,
@@ -70,13 +98,14 @@ public class ProfileAddCommand implements Runnable {
                 projectsToIgnore,
                 sourceBranches,
                 targetBranches,
-                taskRegex);
+                taskRegex
+        );
 
         Map<String, Profile> profiles = storage.loadProfiles();
         profiles.put(name, newProfile);
         storage.saveProfiles(profiles);
 
-        System.out.println("Profile " + name + " successfully saved.");
+        System.out.println("\n[SUCCESS] Profile '" + name + "' saved.");
     }
 
     private <T> List<T> parseList(String input, Function<String, T> mapper) {

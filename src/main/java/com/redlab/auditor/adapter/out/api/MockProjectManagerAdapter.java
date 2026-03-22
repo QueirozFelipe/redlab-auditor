@@ -9,13 +9,13 @@ import com.redlab.auditor.usecase.port.out.ProjectManagerResult;
 import jakarta.annotation.Priority;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Alternative;
+import jakarta.inject.Named;
 
 import java.util.ArrayList;
 import java.util.List;
 
 @ApplicationScoped
-@Alternative
-@Priority(1)
+@Named("PM_MOCK")
 public class MockProjectManagerAdapter implements ProjectManagerPort {
 
     @Override
