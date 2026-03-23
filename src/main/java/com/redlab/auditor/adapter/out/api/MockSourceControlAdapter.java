@@ -22,56 +22,39 @@ public class MockSourceControlAdapter implements SourceControlPort {
         System.out.println("[MOCK] Fetching 100 mocked commits with rich project data");
 
         List<Commit> commits = new ArrayList<>();
-        String[] authors = {"Alice Smith", "Bob Jones", "Charlie Brown", "Eve Davis", "Dave Miller", "Felipe Queiroz", "System"};
 
-        String[] projectNames = {
-                "booking-engine-core",
-                "admin-dashboard-ui",
-                "payment-gateway-service",
-                "notification-worker"
-        };
+        String[] projectNames = {"booking-engine-core", "admin-dashboard-ui", "payment-gateway-service", "notification-worker"};
 
-        // Generating Valid Commits
-        for (int i = 1; i <= 85; i++) {
+        for (int i = 0; i < 25; i++) {
             String hash = UUID.randomUUID().toString().substring(0, 8);
-            String author = authors[i % 5];
-            String taskId = String.valueOf(100000 + ((i % 25) + 1));
-            String projectName = projectNames[i % projectNames.length]; // Distribui entre os 4 projetos
-
-            commits.add(new Commit(
-                    hash,
-                    "Implement logic for task " + taskId + " (part " + i + ")",
-                    author,
-                    projectName, // Novo campo adicionado!
-                    List.of(taskId),
-                    "http://mock-gitlab/commit/" + hash
-            ));
+            commits.add(new Commit(hash, "Refactoring core logic for task 100001 - part " + i, "Felipe Queiroz", "booking-engine-core", List.of("100001"), "http://url/"+hash));
         }
 
-        // Generating Orphan Commits
-        for (int i = 1; i <= 15; i++) {
+        for (int i = 0; i < 12; i++) {
             String hash = UUID.randomUUID().toString().substring(0, 8);
-            String author = (i % 4 == 0) ? "System" : authors[i % 5];
+            commits.add(new Commit(hash, "Fixing CSS for task 100005", "Alice Smith", "admin-dashboard-ui", List.of("100005"), "http://url/"+hash));
+        }
+
+        for (int i = 1; i <= 60; i++) {
+            String hash = UUID.randomUUID().toString().substring(0, 8);
+
+            double rand = Math.random();
+            String author = (rand > 0.7) ? "Felipe Queiroz" : (rand > 0.5) ? "Alice Smith" : (rand > 0.3) ? "Bob Jones" : "Charlie Brown";
+
+            String taskId = String.valueOf(100000 + (int)(Math.random() * 20 + 1));
             String projectName = projectNames[i % projectNames.length];
 
-            List<String> taskIds = (i % 2 == 0) ? List.of() : List.of("99999" + i);
-
-            commits.add(new Commit(
-                    hash,
-                    "Orphan commit " + i + " - fixing typos or merging branches",
-                    author,
-                    projectName, // Novo campo adicionado!
-                    taskIds,
-                    "http://mock-gitlab/commit/" + hash
-            ));
+            commits.add(new Commit(hash, "Update " + hash, author, projectName, List.of(taskId), "http://url/"+hash));
         }
 
-        // Generating ActiveProjectInfo with mocked data
+        for (int i = 1; i <= 20; i++) {
+            String hash = UUID.randomUUID().toString().substring(0, 8);
+            commits.add(new Commit(hash, "Merge branch 'main' into 'dev'", "System", "booking-engine-core", List.of(), "http://url/"+hash));
+        }
+
         List<ActiveProjectInfo> activeProjects = List.of(
-                new ActiveProjectInfo("booking-engine-core", "dev", "main", "35", "2026-03-18 10:30", "12"),
-                new ActiveProjectInfo("admin-dashboard-ui", "develop", "master", "25", "2026-03-17 14:15", "8"),
-                new ActiveProjectInfo("payment-gateway-service", "feature/new-gateway", "main", "20", "2026-03-18 09:00", "5"),
-                new ActiveProjectInfo("notification-worker", "dev", "main", "20", "2026-03-16 16:45", "4")
+                new ActiveProjectInfo("booking-engine-core", "dev", "main", "45", "2026-03-21 22:00", "5"),
+                new ActiveProjectInfo("admin-dashboard-ui", "develop", "master", "12", "2026-03-20 14:15", "8")
         );
 
         List<String> missingBranchProjects = List.of(

@@ -28,17 +28,9 @@ public class MockProjectManagerAdapter implements ProjectManagerPort {
 
         for (int i = 1; i <= 30; i++) {
             String id = String.valueOf(100000 + i);
-            String assignee = assignees[i % assignees.length];
-
-            String status = (i > 25) ? "New" : statuses[i % statuses.length];
-
-            tasks.add(new Task(
-                    id,
-                    "Mocked feature request or bugfix #" + id,
-                    assignee,
-                    status,
-                    "http://mock-redmine/issues/" + id
-            ));
+            String assignee = (i % 3 == 0) ? "Felipe Queiroz" : (i % 4 == 0) ? "Alice Smith" : assignees[i % assignees.length];
+            String status = (i > 22) ? "New" : statuses[i % statuses.length];
+            tasks.add(new Task(id, "Feature request #" + id, assignee, status, "http://mock-redmine/issues/" + id));
         }
 
         return new ProjectManagerResult(

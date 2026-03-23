@@ -16,7 +16,8 @@
         .logo-svg { width: 50px; height: auto; filter: drop-shadow(0px 4px 4px rgba(0,0,0,0.1));}
         .title-group h1 { margin: 0; border-bottom: none; padding-bottom: 0; }
         .title-group p { margin: 0; color: #7f8c8d; font-size: 1rem; font-weight: 500; text-transform: uppercase; letter-spacing: 1px; }
-        .section-heading { color: var(--primary-color); font-size: 1.5rem; margin-top: 1.5rem; margin-bottom: 0.5rem; }
+        .section-heading { display: flex; align-items: center; gap: 10px; color: var(--primary-color); font-size: 1.5rem; margin-top: 2rem; }
+        .section-heading svg { width: 24px; height: 24px; stroke: currentColor; stroke-width: 2; fill: none; }
 
         /* Summary Cards (Project Manager & Source Control) */
         .summary-grid { display: flex; gap: 2rem; margin-bottom: 1.2rem; align-items: stretch; }
@@ -38,21 +39,40 @@
         .text-muted { color: #95a5a6; font-size: 0.8em; }
 
         /* Graphs */
-        .donut-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.5rem; border-bottom: 2px solid #eee; padding-bottom: 1.2rem; margin-bottom: 1.2rem; }
+        .donut-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.5rem; padding: 1rem 0; }
         .chart-container { background: white; padding: 1.5rem; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 1.5rem; }
         .chart-container canvas { max-height: 400px !important; width: 100% !important; margin: 0 auto; }
         .donut-container { text-align: center; }
         .donut-container canvas { max-height: 160px !important; width: 100% !important; margin: 0 auto; }
 
+        /* Tabs */
+        .tabs-container { background: white; padding: 1.5rem; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 2rem; border: 1px solid #eee; }
+        .tabs-header { display: flex; gap: 0.5rem; border-bottom: 2px solid #eee; margin-bottom: 1.5rem; }
+        .tab-btn { padding: 0.8rem 1.5rem; border: none; background: none; cursor: pointer; font-weight: 600; color: #7f8c8d; transition: all 0.2s; border-bottom: 3px solid transparent; margin-bottom: -2px; font-family: inherit; font-size: 0.9rem; }
+        .tab-btn:hover { color: var(--primary-color); }
+        .tab-btn.active { color: var(--primary-color); border-bottom-color: var(--primary-color); }
+        .tab-content { visibility: hidden; height: 0; overflow: hidden; }
+        .tab-content.active { visibility: visible; height: auto; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+
         /* Tables and General Elements */
+        .badge { padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; text-transform: uppercase; }
+        .badge-warning { background-color: #f39c12; color: white; }
+        .badge-info { background-color: #3498db; color: white; }
         .ignored-list-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 2rem; margin-top: 2rem; margin-bottom: 2rem; }
         .ignored-section { display: flex; flex-direction: column; }
         .ignored-section h2 { margin-top: 0; font-size: 1.3rem; }
         .table-scroll-container { max-height: 400px; overflow-y: auto; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 2rem; background: white; border: 1px solid #eee; }
-        .table-scroll-container th { position: sticky; top: 0; z-index: 10; background-color: var(--primary-color); }
+        .table-scroll-container th { position: sticky; top: 0; z-index: 100; background-color: var(--primary-color); box-shadow: 0 2px 2px rgba(0,0,0,0.1); }
         table { width: 100%; border-collapse: collapse; background: white; }
         th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #eee; }
         th { color: white; font-weight: 500; }
+        th.sortable { cursor: pointer; position: relative; padding-right: 30px; transition: background 0.2s; }
+        th.sortable:hover { background-color: var(--secondary-color); }
+        th.sortable::after { content: '↕'; position: absolute; right: 10px; opacity: 0.5; font-size: 0.8rem; }
+        th.sort-asc::after { content: '↓'; opacity: 1; }
+        th.sort-desc::after { content: '↑'; opacity: 1; }
         tr:hover { background-color: #f9f9f9; }
         a { color: #3498db; text-decoration: none; }
         .status-OK { color: var(--success); font-weight: bold; }
@@ -66,6 +86,27 @@
     </style>
 </head>
 <body>
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+    <symbol id="icon-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/>
+    </symbol>
+    <symbol id="icon-activity" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+    </symbol>
+    <symbol id="icon-bar-chart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/>
+    </symbol>
+    <symbol id="icon-slash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
+    </symbol>
+    <symbol id="icon-link-broken" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M11 16H6a4 4 0 01-4-4 4 4 0 014-4h5"/><path d="M13 8h5a4 4 0 014 4 4 4 0 01-4 4h-5"/><line x1="16.5" y1="7.5" x2="7.5" y2="16.5"/>
+    </symbol>
+
+    <symbol id="icon-kanban" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/><line x1="3" y1="9" x2="9" y2="9"/><line x1="9" y1="15" x2="15" y2="15"/><line x1="15" y1="9" x2="21" y2="9"/>
+    </symbol>
+</svg>
 
 <div class="header-container">
     <svg class="logo-svg" xmlns="http://www.w3.org/2000/svg" width="1058" height="1536" viewBox="0 0 1058 1536">
@@ -137,8 +178,9 @@
     </div>
 </div>
 
-<h2 class="section-heading">Audit Overview</h2>
-
+<h2 class="section-heading">
+    <svg><use href="#icon-eye"/></svg> Audit Overview
+</h2>
 <div class="summary-grid">
     <div class="summary-card">
         <h3>Project Manager: <a href="{reportData.pmInfo.providerUrl}"
@@ -229,7 +271,32 @@
     </div>
 </div>
 
-<h2>Projects with Activity</h2>
+<h2 class="section-heading">
+    <svg><use href="#icon-bar-chart"/></svg> Detailed Analytics
+</h2>
+<div class="tabs-container">
+    <div class="tabs-header">
+        <button class="tab-btn active" onclick="openTab(event, 'tasksTab')">Top 10 Tasks</button>
+        <button class="tab-btn" onclick="openTab(event, 'devsTab')">Activity per Developer</button>
+        <button class="tab-btn" onclick="openTab(event, 'assigneeTab')">Responsibility per Assignee</button>
+    </div>
+
+    <div id="tasksTab" class="tab-content active">
+        <canvas id="tasksChart"></canvas>
+    </div>
+
+    <div id="devsTab" class="tab-content">
+        <canvas id="devCommitsChart"></canvas>
+    </div>
+
+    <div id="assigneeTab" class="tab-content">
+        <canvas id="assigneeTasksChart"></canvas>
+    </div>
+</div>
+
+<h2 class="section-heading">
+    <svg><use href="#icon-activity"/></svg> Projects with Activity
+</h2>
 <div class="table-scroll-container">
     <table>
         <thead>
@@ -258,44 +325,40 @@
 </div>
 
 {#if !reportData.missingBranchProjects.isEmpty || !reportData.ignoredByUserProjects.isEmpty}
-<div class="ignored-list-grid">
-
-    {#if !reportData.missingBranchProjects.isEmpty}
-    <div class="ignored-section">
-        <h2>Ignored Projects - Branch Missing</h2>
-        <div class="table-scroll-container">
-            <table>
-                <thead><tr><th>Project Name</th></tr></thead>
-                <tbody>
-                {#for pName in reportData.missingBranchProjects}
-                <tr><td style="color: var(--warning);">{pName}</td></tr>
-                {/for}
-                </tbody>
-            </table>
-        </div>
-    </div>
-    {/if}
-
-    {#if !reportData.ignoredByUserProjects.isEmpty}
-    <div class="ignored-section">
-        <h2>Ignored Projects - User Profile</h2>
-        <div class="table-scroll-container">
-            <table>
-                <thead><tr><th>Project Name</th></tr></thead>
-                <tbody>
-                {#for pName in reportData.ignoredByUserProjects}
-                <tr><td style="color: var(--secondary-color);">{pName}</td></tr>
-                {/for}
-                </tbody>
-            </table>
-        </div>
-    </div>
-    {/if}
-
+<h2 class="section-heading">
+    <svg><use href="#icon-slash"></use></svg>
+    Ignored Projects
+</h2>
+<div class="table-scroll-container">
+    <table style="border-collapse: separate; border-spacing: 0;">
+        <thead>
+        <tr>
+            <th class="sortable">Project Name</th>
+            <th class="sortable">Reason</th>
+        </tr>
+        </thead>
+        <tbody>
+        {#for project in reportData.missingBranchProjects}
+        <tr>
+            <td>{project}</td>
+            <td><span class="badge badge-warning">Missing Branch</span></td>
+        </tr>
+        {/for}
+        {#for project in reportData.ignoredByUserProjects}
+        <tr>
+            <td>{project}</td>
+            <td><span class="badge badge-info">User Profile Filter</span></td>
+        </tr>
+        {/for}
+        </tbody>
+    </table>
 </div>
 {/if}
 
-<h2>Orphan Commits</h2>
+<h2 class="section-heading">
+    <svg><use href="#icon-link-broken"></use></svg>
+    Orphan Commits
+</h2>
 <div class="table-scroll-container">
     <table>
         <thead>
@@ -326,32 +389,20 @@
     </table>
 </div>
 
-<h2>Top 10 Most Active Tasks</h2>
-<div class="chart-container">
-    <canvas id="tasksChart"></canvas>
-</div>
-
-<h2>Activity per Developer</h2>
-<div class="chart-container">
-    <canvas id="devCommitsChart"></canvas>
-</div>
-
-<h2>Responsibility per Assignee</h2>
-<div class="chart-container">
-    <canvas id="assigneeTasksChart"></canvas>
-</div>
-
-<h2>Task Status Map</h2>
+<h2 class="section-heading">
+    <svg><use href="#icon-kanban"></use></svg>
+    Task Status Map
+</h2>
 <div class="table-scroll-container">
     <table>
         <thead>
         <tr>
-            <th>Task ID</th>
-            <th>Title</th>
-            <th>Assignee</th>
-            <th>Redmine Status</th>
-            <th>Commits</th>
-            <th>Status</th>
+            <th class="sortable">Task ID</th>
+            <th class="sortable">Title</th>
+            <th class="sortable">Assignee</th>
+            <th class="sortable">Redmine Status</th>
+            <th class="sortable">Commits</th>
+            <th class="sortable">Status</th>
         </tr>
         </thead>
         <tbody>
@@ -370,9 +421,36 @@
 </div>
 
 <script>
+    function openTab(evt, tabName) {
+        const tabContents = document.getElementsByClassName("tab-content");
+        for (let i = 0; i < tabContents.length; i++) {
+            tabContents[i].classList.remove("active");
+        }
+
+        const tabBtns = document.getElementsByClassName("tab-btn");
+        for (let i = 0; i < tabBtns.length; i++) {
+            tabBtns[i].classList.remove("active");
+        }
+
+        document.getElementById(tabName).classList.add("active");
+        evt.currentTarget.classList.add("active");
+
+        window.dispatchEvent(new Event('resize'));
+    }
+
     const globalOptions = {
         responsive: true,
         maintainAspectRatio: true,
+        animation: {
+            duration: 800
+        },
+        transitions: {
+            active: {
+                animation: {
+                    duration: 0
+                }
+            }
+        },
         plugins: {
             legend: { position: 'bottom' }
         }
@@ -528,7 +606,7 @@
             datasets: [{
                 label: 'Commits',
                 data: top10Tasks.map(t => t.commits),
-                backgroundColor: '#e67e22',
+                backgroundColor: '#3498db',
                 maxBarThickness: 30
             }]
         },
@@ -542,7 +620,7 @@
             datasets: [{
                 label: 'Commits',
                 data: [{#for entry in reportData.commitsPerAuthor.entrySet()}{entry.value},{/for}],
-                backgroundColor: '#9b59b6',
+                backgroundColor: '#2ecc71',
                 maxBarThickness: 30
             }]
         },
@@ -556,11 +634,36 @@
             datasets: [{
                 label: 'Tasks',
                 data: [{#for entry in reportData.tasksPerAssignee.entrySet()}{entry.value},{/for}],
-                backgroundColor: '#e67e22',
+                backgroundColor: '#9b59b6',
                 maxBarThickness: 30
             }]
         },
         options: barOptions
+    });
+
+    document.querySelectorAll('th.sortable').forEach(headerCell => {
+        headerCell.addEventListener('click', () => {
+            const tableElement = headerCell.parentElement.parentElement.parentElement;
+            const headerIndex = Array.prototype.indexOf.call(headerCell.parentElement.children, headerCell);
+            const list = tableElement.querySelectorAll('tbody tr');
+            const isAscending = headerCell.classList.contains('sort-asc');
+
+            const sortedRows = Array.from(list).sort((a, b) => {
+                const selector = 'td:nth-child(' + (headerIndex + 1) + ')';
+                const aColValue = a.querySelector(selector).innerText.trim();
+                const bColValue = b.querySelector(selector).innerText.trim();
+
+                return !isNaN(aColValue) && !isNaN(bColValue)
+                    ? (isAscending ? bColValue - aColValue : aColValue - bColValue)
+                    : (isAscending ? bColValue.localeCompare(aColValue) : aColValue.localeCompare(bColValue));
+            });
+
+            headerCell.parentElement.querySelectorAll('th').forEach(th => th.classList.remove('sort-asc', 'sort-desc'));
+            headerCell.classList.add(isAscending ? 'sort-desc' : 'sort-asc');
+
+            const tbody = tableElement.querySelector('tbody');
+            tbody.append(...sortedRows);
+        });
     });
 </script>
 
