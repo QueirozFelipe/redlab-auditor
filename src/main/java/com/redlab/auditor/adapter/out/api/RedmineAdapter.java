@@ -25,8 +25,8 @@ public class RedmineAdapter implements ProjectManagerPort {
     @Override
     public ProjectManagerResult fetchTasksByVersion(Profile profile, String version) {
         RedmineManager redmineManager = RedmineManagerFactory.createWithApiKey(
-                profile.redmineUrl(),
-                profile.redmineToken()
+                profile.projectManagerURL(),
+                profile.projectManagerToken()
         );
 
         try {
@@ -42,17 +42,15 @@ public class RedmineAdapter implements ProjectManagerPort {
 
             SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
             String dueDate = ofNullable(targetVersion.getDueDate()).map(sdf::format).orElse("");
-            String versionUrl = profile.redmineUrl() + "/versions/" + version;
+            String versionUrl = profile.projectManagerURL() + "/versions/" + version;
 
             List<Tracker> selectedTrackers = new ArrayList<>();
-            if (profile.redmineTrackers() != null && !profile.redmineTrackers().isBlank()) {
-                Set<String> trackerIds = Arrays.stream(profile.redmineTrackers().split(","))
-                        .map(String::trim)
-                        .collect(Collectors.toSet());
+            if (!profile.projectManagerIssueTypes().isEmpty()) {
+                Set<Long> trackerIds = profile.projectManagerIssueTypes();
 
                 List<com.taskadapter.redmineapi.bean.Tracker> allTrackers = issueManager.getTrackers();
                 selectedTrackers = allTrackers.stream()
-                        .filter(t -> trackerIds.contains(String.valueOf(t.getId())))
+                        .filter(t -> trackerIds.contains(t.getId()))
                         .map(t -> new Tracker(String.valueOf(t.getId()), t.getName()))
                         .collect(Collectors.toList());
             } else {
@@ -61,7 +59,7 @@ public class RedmineAdapter implements ProjectManagerPort {
 
             ProjectManagerInfo pmInfo = new ProjectManagerInfo(
                     "Redmine",
-                    profile.redmineUrl(),
+                    profile.projectManagerURL(),
                     projectName,
                     projectId,
                     versionName,
@@ -75,14 +73,14 @@ public class RedmineAdapter implements ProjectManagerPort {
             Map<String, String> parameters = new HashMap<>();
             parameters.put("fixed_version_id", version);
             parameters.put("status_id", "*");
-            if (profile.redmineTrackers() != null && !profile.redmineTrackers().isBlank()) {
-                parameters.put("tracker_id", profile.redmineTrackers());
+            if (!profile.projectManagerIssueTypes().isEmpty()) {
+                parameters.put("tracker_id", String.valueOf(profile.projectManagerIssueTypes()));
             }
 
             List<Issue> issues = issueManager.getIssues(parameters).getResults();
 
             List<Task> tasks = issues.stream()
-                    .map(issue -> mapToDomainTask(issue, profile.redmineUrl()))
+                    .map(issue -> mapToDomainTask(issue, profile.projectManagerURL()))
                     .collect(Collectors.toList());
 
             return new ProjectManagerResult(pmInfo, tasks);

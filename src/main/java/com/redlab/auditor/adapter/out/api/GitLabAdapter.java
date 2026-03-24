@@ -39,14 +39,14 @@ public class GitLabAdapter implements SourceControlPort {
 
     @Override
     public SourceControlResult compareBranches(Profile profile, List<String> sourceBranches, List<String> targetBranches) {
-        this.rateLimiter = new Semaphore(profile.gitlabRateLimit());
+        this.rateLimiter = new Semaphore(profile.sourceControlRateLimit());
 
-        try (GitLabApi gitLabApi = new GitLabApi(profile.gitlabUrl(), profile.gitlabToken())) {
-            Group group = gitLabApi.getGroupApi().getGroup(profile.gitlabGroupId());
+        try (GitLabApi gitLabApi = new GitLabApi(profile.sourceControlURL(), profile.sourceControlToken())) {
+            Group group = gitLabApi.getGroupApi().getGroup(profile.sourceControlGroupId());
             String groupName = group.getName();
             String groupId = String.valueOf(group.getId());
 
-            List<Project> allProjects = gitLabApi.getGroupApi().getProjects(profile.gitlabGroupId());
+            List<Project> allProjects = gitLabApi.getGroupApi().getProjects(profile.sourceControlGroupId());
             List<String> ignoredByUserProjects = new ArrayList<>();
             List<Project> projectsToAudit = new ArrayList<>();
 
@@ -88,7 +88,7 @@ public class GitLabAdapter implements SourceControlPort {
 
             SourceControlInfo scInfo = new SourceControlInfo(
                     "GitLab",
-                    profile.gitlabUrl(),
+                    profile.sourceControlURL(),
                     groupName,
                     groupId,
                     totalProjects,

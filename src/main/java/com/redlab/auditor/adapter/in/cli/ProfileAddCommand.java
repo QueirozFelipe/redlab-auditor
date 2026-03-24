@@ -1,5 +1,6 @@
 package com.redlab.auditor.adapter.in.cli;
 
+import com.redlab.auditor.adapter.in.cli.utils.ProfileFormUtils;
 import com.redlab.auditor.domain.model.Profile;
 import com.redlab.auditor.domain.model.ProjectManagerType;
 import com.redlab.auditor.domain.model.SourceControlType;
@@ -7,12 +8,10 @@ import com.redlab.auditor.infrastructure.security.ProfileStorageService;
 import jakarta.inject.Inject;
 import picocli.CommandLine;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import java.util.Scanner;
+import java.util.Set;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 
 @CommandLine.Command(name = "add", description = "Adds a new configuration profile.")
 public class ProfileAddCommand implements Runnable {
@@ -22,100 +21,78 @@ public class ProfileAddCommand implements Runnable {
 
     @Override
     public void run() {
-        Scanner scanner = new Scanner(System.in);
+        ProfileFormUtils form = new ProfileFormUtils();
+        Map<String, Profile> profiles = storage.loadProfiles();
+
         System.out.println("=== New Configuration Profile ===");
 
-        System.out.print("Profile Name: ");
-        String name = scanner.nextLine();
+        String name = form.askUniqueName("\nProfile Name", profiles.keySet());
 
-        // 1. SELEÇÃO PM
-        System.out.println("\nSelect Project Manager (1-Redmine, 2-Jira, 3-Mock): ");
-        int pmOption = Integer.parseInt(scanner.nextLine());
-        ProjectManagerType pmType = ProjectManagerType.fromId(pmOption);
+        ProjectManagerType pmType = form.askEnum(
+                "Select Project Manager (1-Redmine, 2-Jira): ",
+                ProjectManagerType::fromId
+        );
+        String pmName = pmType.getDisplayName();
 
-        // DECLARE ANTES COM VALORES DEFAULT
-        String redmineUrl = "";
-        String redmineToken = "";
-        String redmineTrackers = "";
+        String pmUrl = form.askUrl(pmName + " URL", null);
+        String pmToken = form.askRequired(pmName + " Token", null);
+        Set<Long> pmIssueTypes = form.parseSet(
+                pmName + " Trackers/IssueTypes (IDs, e.g., 11,13,17)",
+                null,
+                Long::parseLong
+        );
 
-        if (pmType == ProjectManagerType.REDMINE) {
-            System.out.print("Redmine URL: ");
-            redmineUrl = scanner.nextLine();
-            System.out.print("Redmine Token: ");
-            redmineToken = scanner.nextLine();
-            System.out.print("Redmine Trackers: ");
-            redmineTrackers = scanner.nextLine();
-        }
+        SourceControlType scType = form.askEnum(
+                "Select Source Control (1-GitLab, 2-Github): ",
+                SourceControlType::fromId
+        );
+        String scName = scType.getDisplayName();
 
-        System.out.println("\nSelect Source Control (1-GitLab, 2-Github, 3-Mock): ");
-        int scOption = Integer.parseInt(scanner.nextLine());
-        SourceControlType scType = SourceControlType.fromId(scOption);
+        String scUrl = form.askUrl(scName + " URL", null);
+        String scToken = form.askRequired(scName + " Token", null);
+        String scGroupId = form.askRequired("Group ID", null);
+        int scRateLimit = form.askInt("API Rate Limit", 10);
 
-        String gitlabUrl = "";
-        String gitlabToken = "";
-        String gitlabGroupId = "";
-        int gitlabRateLimit = 10;
-        List<Long> projectsToIgnore = List.of();
-        List<String> sourceBranches = List.of();
-        List<String> targetBranches = List.of();
-        String taskRegex = "";
+        Set<Long> projectsToIgnore = form.parseSet(
+                "Project IDs to Ignore (IDs, e.g., 11,13,17)",
+                null,
+                Long::parseLong
+        );
 
-        if (scType == SourceControlType.GITLAB) {
-            System.out.print("Gitlab URL: ");
-            gitlabUrl = scanner.nextLine();
-            System.out.print("Gitlab Token: ");
-            gitlabToken = scanner.nextLine();
-            System.out.print("Gitlab Group ID: ");
-            gitlabGroupId = scanner.nextLine();
-            System.out.print("Gitlab Rate Limit [10]: ");
-            String rateStr = scanner.nextLine();
-            gitlabRateLimit = rateStr.isBlank() ? 10 : Integer.parseInt(rateStr);
+        List<String> sourceBranches = form.parseList(
+                "Source Branches (e.g., dev,develop)",
+                null,
+                Function.identity()
+        );
 
-            System.out.print("Project IDs to Ignore: ");
-            projectsToIgnore = parseList(scanner.nextLine(), Long::parseLong);
+        List<String> targetBranches = form.parseList(
+                "Target Branches (e.g., main,master)",
+                null,
+                Function.identity()
+        );
 
-            System.out.print("Source Branches (dev,develop): ");
-            sourceBranches = parseList(scanner.nextLine(), Function.identity());
-
-            System.out.print("Target Branches (main,master): ");
-            targetBranches = parseList(scanner.nextLine(), Function.identity());
-
-            System.out.print("Commit Pattern Regex: ");
-            taskRegex = scanner.nextLine();
-        }
+        String taskRegex = form.askRegex("Commit Pattern Regex (e.g., #(\\d+))", null);
 
         Profile newProfile = new Profile(
                 name,
                 pmType,
                 scType,
-                redmineUrl,
-                redmineToken,
-                redmineTrackers,
-                gitlabUrl,
-                gitlabToken,
-                gitlabGroupId,
-                gitlabRateLimit,
+                pmUrl,
+                pmToken,
+                pmIssueTypes,
+                scUrl,
+                scToken,
+                scGroupId,
+                scRateLimit,
                 projectsToIgnore,
                 sourceBranches,
                 targetBranches,
                 taskRegex
         );
 
-        Map<String, Profile> profiles = storage.loadProfiles();
         profiles.put(name, newProfile);
         storage.saveProfiles(profiles);
 
         System.out.println("\n[SUCCESS] Profile '" + name + "' saved.");
-    }
-
-    private <T> List<T> parseList(String input, Function<String, T> mapper) {
-        if (input == null || input.isBlank()) {
-            return List.of();
-        }
-        return Arrays.stream(input.split(","))
-                .map(String::trim)
-                .filter(s -> !s.isEmpty())
-                .map(mapper)
-                .collect(Collectors.toList());
     }
 }

@@ -4,8 +4,7 @@ import java.util.Arrays;
 
 public enum ProjectManagerType {
     REDMINE(1, "Redmine"),
-    JIRA(2, "Jira"),
-    PM_MOCK(3, "Test Data");
+    JIRA(2, "Jira");
 
     private final int id;
     private final String displayName;
@@ -14,6 +13,6 @@ public enum ProjectManagerType {
     public String getDisplayName() { return displayName; }
 
     public static ProjectManagerType fromId(int id) {
-        return Arrays.stream(values()).filter(e -> e.id == id).findFirst().orElse(PM_MOCK);
+        return Arrays.stream(values()).filter(e -> e.id == id).findFirst().orElse(null);
     }
 }

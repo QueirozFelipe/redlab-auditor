@@ -2,19 +2,20 @@ package com.redlab.auditor.domain.model;
 
 import java.io.Serializable;
 import java.util.List;
+import java.util.Set;
 
 public record Profile(
         String name,
         ProjectManagerType pmType,
         SourceControlType scType,
-        String redmineUrl,
-        String redmineToken,
-        String redmineTrackers,
-        String gitlabUrl,
-        String gitlabToken,
-        String gitlabGroupId,
-        int gitlabRateLimit,
-        List<Long> projectsToIgnore,
+        String projectManagerURL,
+        String projectManagerToken,
+        Set<Long> projectManagerIssueTypes,
+        String sourceControlURL,
+        String sourceControlToken,
+        String sourceControlGroupId,
+        int sourceControlRateLimit,
+        Set<Long> projectsToIgnore,
         List<String> sourceBranches,
         List<String> targetBranches,
         String taskRegex
