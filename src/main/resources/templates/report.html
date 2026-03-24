@@ -34,8 +34,6 @@
         .summary-value { font-weight: 600; text-align: right; color: var(--primary-color); }
         .summary-footer { border-top: 1px solid #eee; padding-top: 0.8rem; display: flex; justify-content: space-between; align-items: center; }
         .summary-value-highlight { font-size: 1.2rem; font-weight: 700; color: var(--primary-color); }
-        .badge-group { gap: 4px; display: flex; flex-wrap: wrap; justify-content: flex-end; }
-        .badge { padding: 2px 6px; border-radius: 3px; font-size: 0.75rem; background: #eee; }
         .text-muted { color: #95a5a6; font-size: 0.8em; }
 
         /* Graphs */
@@ -55,11 +53,19 @@
         .tab-content.active { visibility: visible; height: auto; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
+        /* --- Base Badge System --- */
+        .badge { display: inline-flex; align-items: center; justify-content: center; padding: 4px 10px; border-radius: 4px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; line-height: 1; white-space: nowrap; background-color: #ecf0f1; color: #2c3e50; }
+        .badge-group { gap: 4px; display: flex; flex-wrap: wrap; justify-content: flex-end; }
+        .badge-warning { background-color: #f1c40f; color: #fff; }
+        .badge-normal { background-color: #7f8c8d; color: #fff; }
+        .badge-info { background-color: #3498db; color: #fff; }
+        .text-muted .badge { padding: 1px 5px; font-size: 0.7rem; font-weight: 500; background-color: #dfe6e9; color: #636e72; text-transform: none; vertical-align: middle; }
+        .status-OK { color: var(--success); font-weight: bold; }
+        .status-PROBLEM { color: var(--danger); font-weight: bold; }
+        .status-WARNING { color: var(--warning); font-weight: bold; }
+
 
         /* Tables and General Elements */
-        .badge { padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; text-transform: uppercase; }
-        .badge-warning { background-color: #f39c12; color: white; }
-        .badge-info { background-color: #3498db; color: white; }
         .ignored-list-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 2rem; margin-top: 2rem; margin-bottom: 2rem; }
         .ignored-section { display: flex; flex-direction: column; }
         .ignored-section h2 { margin-top: 0; font-size: 1.3rem; }
@@ -75,10 +81,6 @@
         th.sort-desc::after { content: '↑'; opacity: 1; }
         tr:hover { background-color: #f9f9f9; }
         a { color: #3498db; text-decoration: none; }
-        .status-OK { color: var(--success); font-weight: bold; }
-        .status-PROBLEM { color: var(--danger); font-weight: bold; }
-        .status-WARNING { color: var(--warning); font-weight: bold; }
-        .badge { padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; background: #eee; }
         .table-scroll-container::-webkit-scrollbar { width: 8px; }
         .table-scroll-container::-webkit-scrollbar-track { background: #f1f1f1; }
         .table-scroll-container::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
@@ -209,7 +211,9 @@
                 <span class="summary-label">Trackers</span>
                 <div class="badge-group">
                     {#for tracker in reportData.pmInfo.trackers}
-                    <span class="badge">{tracker.name} <span class="text-muted">({tracker.id})</span></span>
+                    <span class="badge badge-info">{tracker.name}
+                        <span class="text-muted">({tracker.id})</span>
+                    </span>
                     {/for}
                 </div>
             </li>
@@ -347,7 +351,7 @@
         {#for project in reportData.ignoredByUserProjects}
         <tr>
             <td>{project}</td>
-            <td><span class="badge badge-info">User Profile Filter</span></td>
+            <td><span class="badge badge-normal">User Profile Filter</span></td>
         </tr>
         {/for}
         </tbody>

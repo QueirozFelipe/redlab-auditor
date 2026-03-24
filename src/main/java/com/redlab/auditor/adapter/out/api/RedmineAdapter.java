@@ -50,9 +50,16 @@ public class RedmineAdapter implements ProjectManagerPort {
 
                 List<com.taskadapter.redmineapi.bean.Tracker> allTrackers = issueManager.getTrackers();
                 selectedTrackers = allTrackers.stream()
-                        .filter(t -> trackerIds.contains(t.getId()))
+                        .filter(t -> trackerIds.contains(t.getId().longValue()))
                         .map(t -> new Tracker(String.valueOf(t.getId()), t.getName()))
                         .collect(Collectors.toList());
+
+                if (selectedTrackers.isEmpty()) {
+                    throw new IllegalStateException(String.format(
+                      "[ERROR] None of the configured Trackers %s were found in Redmine. Please check your profile IDs.",
+                      trackerIds
+                    ));
+                }
             } else {
                 selectedTrackers.add(new Tracker("*", "All Trackers"));
             }
@@ -73,9 +80,11 @@ public class RedmineAdapter implements ProjectManagerPort {
             Map<String, String> parameters = new HashMap<>();
             parameters.put("fixed_version_id", version);
             parameters.put("status_id", "*");
-            if (!profile.projectManagerIssueTypes().isEmpty()) {
-                parameters.put("tracker_id", String.valueOf(profile.projectManagerIssueTypes()));
-            }
+            String trackersParam = selectedTrackers.stream()
+              .map(Tracker::id)
+              .collect(Collectors.joining(","));
+            parameters.put("tracker_id", trackersParam);
+
 
             List<Issue> issues = issueManager.getIssues(parameters).getResults();
 
