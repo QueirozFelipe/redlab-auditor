@@ -10,6 +10,8 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -81,6 +83,8 @@ public class GenerateAuditReportUseCase implements AuditCommandPort {
         long totalCommitsCount = commits.size();
         long totalLinkedCommits = totalCommitsCount - orphanCommits.size();
 
+        String generatedAt = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+
         AuditReport report = new AuditReport(
                 toolVersion,
                 version,
@@ -96,7 +100,8 @@ public class GenerateAuditReportUseCase implements AuditCommandPort {
                 tasksWithCommitCount,
                 tasksMissingCommitCount,
                 commitsPerAuthor,
-                tasksPerAssignee
+                tasksPerAssignee,
+                generatedAt
         );
 
         reportGeneratorPort.generateHtmlReport(report);

@@ -1,5 +1,6 @@
 package com.redlab.auditor.domain.model;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
@@ -18,6 +19,7 @@ public record AuditReport(
         long tasksWithCommitCount,
         long tasksMissingCommitCount,
         Map<String, Long> commitsPerAuthor,
-        Map<String, Long> tasksPerAssignee
+        Map<String, Long> tasksPerAssignee,
+        String generatedAt
 ) {
 }
