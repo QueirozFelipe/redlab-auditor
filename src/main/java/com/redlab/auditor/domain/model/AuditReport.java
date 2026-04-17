@@ -20,6 +20,7 @@ public record AuditReport(
         long tasksMissingCommitCount,
         Map<String, Long> commitsPerAuthor,
         Map<String, Long> tasksPerAssignee,
-        String generatedAt
+        String generatedAt,
+        String profileName
 ) {
 }

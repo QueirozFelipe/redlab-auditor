@@ -69,9 +69,8 @@ public class GenerateAuditReportUseCase implements AuditCommandPort {
                     .toList();
 
             AuditStatus status = determineStatus(task, relatedCommits);
-            String observation = generateObservation(status, relatedCommits);
 
-            return new AuditReportItem(task, relatedCommits, status, observation);
+            return new AuditReportItem(task, relatedCommits, status);
         }).toList();
 
         List<Commit> orphanCommits = commits.stream()
@@ -101,7 +100,8 @@ public class GenerateAuditReportUseCase implements AuditCommandPort {
                 tasksMissingCommitCount,
                 commitsPerAuthor,
                 tasksPerAssignee,
-                generatedAt
+                generatedAt,
+                profileName
         );
 
         reportGeneratorPort.generateHtmlReport(report);
@@ -110,15 +110,8 @@ public class GenerateAuditReportUseCase implements AuditCommandPort {
     }
 
     private AuditStatus determineStatus(Task task, List<Commit> relatedCommits) {
-        if (relatedCommits.isEmpty()) return AuditStatus.PROBLEM;
+        if (relatedCommits.isEmpty()) return AuditStatus.WARNING;
         return AuditStatus.OK;
     }
 
-    private String generateObservation(AuditStatus status, List<Commit> relatedCommits) {
-        return switch (status) {
-            case PROBLEM -> "No commits found for this task in the target branch.";
-            case WARNING -> "Authorship divergence detected.";
-            case OK -> relatedCommits.size() + " commit(s) validated.";
-        };
-    }
 }

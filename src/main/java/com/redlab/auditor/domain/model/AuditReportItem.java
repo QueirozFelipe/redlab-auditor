@@ -5,7 +5,6 @@ import java.util.List;
 public record AuditReportItem(
         Task task,
         List<Commit> foundCommits,
-        AuditStatus status,
-        String observation
+        AuditStatus status
 ) {
 }

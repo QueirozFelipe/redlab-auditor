@@ -12,6 +12,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Base64;
 
 @ApplicationScoped
 public class QuteReportAdapter implements ReportGeneratorPort {
@@ -25,7 +26,11 @@ public class QuteReportAdapter implements ReportGeneratorPort {
 
     @Override
     public void generateHtmlReport(AuditReport auditReport) {
-        TemplateInstance instance = report.data("reportData", auditReport);
+        String logoBase64 = getLogoBase64();
+
+        TemplateInstance instance = report
+                .data("reportData", auditReport)
+                .data("logoBase64", logoBase64);
 
         String htmlContent = instance.render();
 
@@ -37,6 +42,18 @@ public class QuteReportAdapter implements ReportGeneratorPort {
             System.out.println("[\u2713] Audit Report successfully generated at: " + outputPath.toAbsolutePath());
         } catch (IOException e) {
             throw new RuntimeException("Error writing the HTML report to disk: " + e.getMessage(), e);
+        }
+    }
+
+    private String getLogoBase64() {
+        try {
+            Path path = Path.of("src/main/resources/META-INF/resources/redlab-logo.png");
+            byte[] imageBytes = Files.readAllBytes(path);
+            String base64Content = Base64.getEncoder().encodeToString(imageBytes);
+            return "data:image/png;base64," + base64Content;
+        } catch (Exception e) {
+            System.err.println("[\u26A0] Warning: Could not load logo for Base64 injection: " + e.getMessage());
+            return "";
         }
     }
 
