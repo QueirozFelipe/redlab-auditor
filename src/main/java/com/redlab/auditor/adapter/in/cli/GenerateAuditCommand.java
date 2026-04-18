@@ -1,5 +1,6 @@
 package com.redlab.auditor.adapter.in.cli;
 
+import com.redlab.auditor.domain.exception.ApiResponseException;
 import com.redlab.auditor.domain.model.Profile;
 import com.redlab.auditor.infrastructure.security.ProfileStorageService;
 import com.redlab.auditor.usecase.port.in.AuditCommandPort;
@@ -54,8 +55,10 @@ public class GenerateAuditCommand implements Runnable {
 
             System.out.println("--------------------------------------------------");
             System.out.println("[SUCCESS] Audit completed without critical system errors.");
-        } catch (Exception e) {
+        } catch (ApiResponseException e) {
             System.err.println("[ERROR] The audit process failed: " + e.getMessage());
+        } catch (Exception e) {
+            System.err.println("\n[FATAL] An unexpected error occurred.");
             e.printStackTrace();
         }
     }

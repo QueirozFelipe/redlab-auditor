@@ -7,5 +7,6 @@ public record Commit(String hash,
                      String author,
                      String projectName,
                      List<String> associatedTaskIds,
-                     String url) {
+                     String url,
+                     String createdAt) {
 }

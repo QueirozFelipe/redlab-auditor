@@ -1,27 +1,19 @@
 package com.redlab.auditor.adapter.out.api;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.redlab.auditor.domain.model.ActiveProjectInfo;
-import com.redlab.auditor.domain.model.Commit;
-import com.redlab.auditor.domain.model.Profile;
-import com.redlab.auditor.domain.model.SourceControlInfo;
+import com.redlab.auditor.adapter.out.api.client.GitHubClient;
+import com.redlab.auditor.domain.exception.ResourceNotFoundException;
+import com.redlab.auditor.domain.model.*;
 import com.redlab.auditor.usecase.port.out.SourceControlPort;
 import com.redlab.auditor.usecase.port.out.SourceControlResult;
 import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.inject.Inject;
 import jakarta.inject.Named;
+import org.eclipse.microprofile.rest.client.RestClientBuilder;
 
 import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.text.SimpleDateFormat;
-import java.time.Duration;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -30,24 +22,14 @@ import java.util.regex.Pattern;
 @Named("GITHUB")
 public class GitHubAdapter implements SourceControlPort {
 
-    @Inject
-    ObjectMapper mapper;
-
-    private final HttpClient httpClient;
     private Semaphore rateLimiter;
-
-    private record ProjectResult(List<Commit> commits, String projectName, boolean isValid, ActiveProjectInfo activeInfo) {}
-
+    private static final String GITHUB_API_VERSION = "2022-11-28";
     private static final Pattern IGNORE_COMMIT_PATTERN = Pattern.compile(
             "^(Merge branch|Merge pull request|See merge request|Merge tag|chore:?\\s*release).*",
             Pattern.CASE_INSENSITIVE
     );
 
-    public GitHubAdapter() {
-        this.httpClient = HttpClient.newBuilder()
-                .connectTimeout(Duration.ofSeconds(10))
-                .build();
-    }
+    private record ProjectResult(List<Commit> commits, String projectName, boolean isValid, ActiveProjectInfo activeInfo) {}
 
     @Override
     public SourceControlResult compareBranches(Profile profile, List<String> sourceBranches, List<String> targetBranches) {
@@ -56,217 +38,144 @@ public class GitHubAdapter implements SourceControlPort {
         String owner = profile.sourceControlGroupId();
         String baseUrl = profile.sourceControlURL().replaceAll("/+$", "");
         if (baseUrl.isBlank()) baseUrl = "https://api.github.com";
+        String token = "Bearer " + profile.sourceControlToken();
 
-        try {
-            System.out.println("[GITHUB] Fetching repositories for owner: " + owner);
-            List<JsonNode> allProjects = fetchAllRepositories(baseUrl, owner, profile.sourceControlToken());
+        GitHubClient client = RestClientBuilder.newBuilder()
+                .baseUri(URI.create(baseUrl))
+                .build(GitHubClient.class);
 
-            List<String> ignoredByUserProjects = new ArrayList<>();
-            List<JsonNode> projectsToAudit = new ArrayList<>();
+        System.out.println("[GITHUB] Fetching repositories for owner: " + owner);
+        List<JsonNode> allProjects = fetchAllRepositories(client, owner, token);
 
-            for (JsonNode repo : allProjects) {
-                long repoId = repo.path("id").asLong();
-                String repoName = repo.path("name").asText();
+        List<String> ignoredByUserProjects = new ArrayList<>();
+        List<JsonNode> projectsToAudit = new ArrayList<>();
 
-                if (profile.projectsToIgnore() != null && profile.projectsToIgnore().contains(repoId)) {
-                    ignoredByUserProjects.add(repoName);
-                } else {
-                    projectsToAudit.add(repo);
-                }
+        for (JsonNode repo : allProjects) {
+            String repoName = repo.path("name").asText();
+            if (profile.projectsToIgnore() != null && profile.projectsToIgnore().contains(repo.path("id").asLong())) {
+                ignoredByUserProjects.add(repoName);
+            } else {
+                projectsToAudit.add(repo);
             }
+        }
 
-            List<Commit> allCommits = new ArrayList<>();
-            List<ActiveProjectInfo> activeProjects = new ArrayList<>();
-            List<String> missingBranchProjects = new ArrayList<>();
+        List<Commit> allCommits = new ArrayList<>();
+        List<ActiveProjectInfo> activeProjects = new ArrayList<>();
+        List<String> missingBranchProjects = new ArrayList<>();
 
-            try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
-                String finalBaseUrl = baseUrl;
-                List<Callable<ProjectResult>> tasks = projectsToAudit.stream()
-                        .map(repo -> (Callable<ProjectResult>) () -> processProject(finalBaseUrl, owner, repo, profile, sourceBranches, targetBranches))
-                        .toList();
+        try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
+            List<Callable<ProjectResult>> tasks = projectsToAudit.stream()
+                    .map(repo -> (Callable<ProjectResult>) () -> processProject(client, owner, repo, profile, sourceBranches, targetBranches, token))
+                    .toList();
 
-                List<Future<ProjectResult>> results = executor.invokeAll(tasks);
-
-                for (Future<ProjectResult> resultFuture : results) {
-                    ProjectResult pr = resultFuture.get();
-
+            executor.invokeAll(tasks).forEach(future -> {
+                try {
+                    ProjectResult pr = future.get();
                     allCommits.addAll(pr.commits());
+                    if (!pr.isValid()) missingBranchProjects.add(pr.projectName());
+                    else if (!pr.commits().isEmpty()) activeProjects.add(pr.activeInfo());
+                } catch (Exception ignored) {}
+            });
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
 
-                    if (!pr.isValid()) {
-                        missingBranchProjects.add(pr.projectName());
-                    } else if (!pr.commits().isEmpty()) {
-                        activeProjects.add(pr.activeInfo());
+        SourceControlInfo scInfo = new SourceControlInfo("GitHub", baseUrl, owner, owner,
+                allProjects.size(), (allProjects.size() - missingBranchProjects.size() - ignoredByUserProjects.size()), activeProjects.size());
+
+        return new SourceControlResult(scInfo, allCommits, activeProjects, missingBranchProjects, ignoredByUserProjects);
+    }
+
+    private ProjectResult processProject(GitHubClient client, String owner, JsonNode repo, Profile profile, List<String> sourceBranches, List<String> targetBranches, String token) throws InterruptedException {
+        rateLimiter.acquire();
+        try {
+            String repoName = repo.path("name").asText();
+            System.out.println("  [>] Auditing project: " + repoName);
+
+            for (String target : targetBranches) {
+                for (String source : sourceBranches) {
+                    try {
+                        JsonNode comparison = client.compareBranches(owner, repoName, target, source, token, GITHUB_API_VERSION);
+                        List<Commit> commits = processCommits(comparison.path("commits"), profile.taskRegex(), repoName);
+
+                        ActiveProjectInfo activeInfo = commits.isEmpty() ? null : createActiveInfo(repoName, source, target, commits);
+                        return new ProjectResult(commits, repoName, true, activeInfo);
+                    } catch (ResourceNotFoundException e) {
+                        continue;
                     }
                 }
             }
-
-            int totalProjects = allProjects.size();
-            int validProjectsCount = totalProjects - missingBranchProjects.size() - ignoredByUserProjects.size();
-
-            SourceControlInfo scInfo = new SourceControlInfo(
-                    "GitHub",
-                    baseUrl,
-                    owner, // Group Name equivalente
-                    owner, // Group ID equivalente
-                    totalProjects,
-                    validProjectsCount,
-                    activeProjects.size()
-            );
-
-            return new SourceControlResult(scInfo, allCommits, activeProjects, missingBranchProjects, ignoredByUserProjects);
-
-        } catch (Exception e) {
-            throw new RuntimeException("Error fetching data from GitHub: " + e.getMessage(), e);
-        }
-    }
-
-    private ProjectResult processProject(String baseUrl, String owner, JsonNode repo, Profile profile, List<String> sourceBranches, List<String> targetBranches) throws InterruptedException {
-        rateLimiter.acquire();
-        String repoName = repo.path("name").asText();
-        try {
-            System.out.println("  [>] Auditing project: " + repoName);
-            return executeWithFailover(baseUrl, owner, repoName, profile, sourceBranches, targetBranches);
+            return new ProjectResult(List.of(), repoName, false, null);
         } finally {
             rateLimiter.release();
         }
     }
 
-    private ProjectResult executeWithFailover(String baseUrl, String owner, String repoName, Profile profile, List<String> sourceBranches, List<String> targetBranches) {
-        for (String target : targetBranches) {
-            for (String source : sourceBranches) {
-                try {
-                    String compareUrl = String.format("%s/repos/%s/%s/compare/%s...%s", baseUrl, owner, repoName, target, source);
-
-                    HttpResponse<String> response = executeGet(compareUrl, profile.sourceControlToken());
-
-                    if (response.statusCode() == 404) {
-                        continue;
-                    }
-                    if (response.statusCode() >= 400) {
-                        System.err.println("    [!] Error comparing " + target + "..." + source + " in " + repoName + ": HTTP " + response.statusCode());
-                        break;
-                    }
-
-                    JsonNode comparison = mapper.readTree(response.body());
-                    JsonNode commitsArray = comparison.path("commits");
-
-                    List<Commit> commits = new ArrayList<>();
-                    String lastDateStr = "N/A";
-                    Date maxDate = new Date(0);
-
-                    for (JsonNode commitNode : commitsArray) {
-                        if (isMeaningfulCommit(commitNode)) {
-                            Commit domainCommit = mapToDomainCommit(commitNode, profile.taskRegex(), repoName);
-                            commits.add(domainCommit);
-
-                            String dateIso = commitNode.path("commit").path("committer").path("date").asText();
-                            if (!dateIso.isBlank()) {
-                                Date commitDate = Date.from(Instant.parse(dateIso));
-                                if (commitDate.after(maxDate)) {
-                                    maxDate = commitDate;
-                                    lastDateStr = new SimpleDateFormat("yyyy-MM-dd HH:mm").format(commitDate);
-                                }
-                            }
-                        }
-                    }
-
-                    ActiveProjectInfo activeInfo = null;
-
-                    if (!commits.isEmpty()) {
-                        long uniqueTasksCount = commits.stream()
-                                .flatMap(c -> c.associatedTaskIds().stream())
-                                .distinct()
-                                .count();
-
-                        activeInfo = new ActiveProjectInfo(
-                                repoName, source, target,
-                                String.valueOf(commits.size()), lastDateStr, String.valueOf(uniqueTasksCount)
-                        );
-                    }
-
-                    return new ProjectResult(commits, repoName, true, activeInfo);
-
-                } catch (Exception e) {
-                    System.err.println("    [!] Error processing " + repoName + ": " + e.getMessage());
-                    break;
-                }
+    private List<Commit> processCommits(JsonNode commitsArray, String regex, String repoName) {
+        List<Commit> commits = new ArrayList<>();
+        commitsArray.forEach(node -> {
+            if (isMeaningfulCommit(node)) {
+                commits.add(mapToDomainCommit(node, regex, repoName));
             }
-        }
-
-        return new ProjectResult(List.of(), repoName, false, null);
+        });
+        return commits;
     }
 
-    private List<JsonNode> fetchAllRepositories(String baseUrl, String owner, String token) throws Exception {
-        List<JsonNode> allRepos = new ArrayList<>();
-        int page = 1;
+    private ActiveProjectInfo createActiveInfo(String repoName, String source, String target, List<Commit> commits) {
+        String lastDateStr = commits.stream()
+                .map(Commit::createdAt)
+                .filter(date -> !date.isBlank())
+                .map(Instant::parse)
+                .max(Instant::compareTo)
+                .map(instant -> new SimpleDateFormat("yyyy-MM-dd HH:mm").format(Date.from(instant)))
+                .orElse("N/A");
 
-        String apiUrl = baseUrl + "/orgs/" + owner + "/repos";
+        long uniqueTasksCount = commits.stream().flatMap(c -> c.associatedTaskIds().stream()).distinct().count();
+        return new ActiveProjectInfo(repoName, source, target, String.valueOf(commits.size()), lastDateStr, String.valueOf(uniqueTasksCount));
+    }
+
+    private List<JsonNode> fetchAllRepositories(GitHubClient client, String owner, String token) {
+        List<JsonNode> all = new ArrayList<>();
+        int page = 1;
+        boolean isOrg = true;
 
         while (true) {
-            String pagedUrl = apiUrl + "?per_page=100&page=" + page;
-            HttpResponse<String> response = executeGet(pagedUrl, token);
+            try {
+                List<JsonNode> repos = isOrg
+                        ? client.getOrgRepos(owner, 100, page++, token, GITHUB_API_VERSION)
+                        : client.getUserRepos(owner, 100, page++, token, GITHUB_API_VERSION);
 
-            if (response.statusCode() == 404 && page == 1) {
-                apiUrl = baseUrl + "/users/" + owner + "/repos";
-                pagedUrl = apiUrl + "?per_page=100&page=" + page;
-                response = executeGet(pagedUrl, token);
+                if (repos.isEmpty()) break;
+                all.addAll(repos);
+            } catch (ResourceNotFoundException e) {
+                if (isOrg && page == 1) {
+                    isOrg = false;
+                    continue;
+                }
+                throw e;
             }
-
-            if (response.statusCode() >= 400) {
-                throw new RuntimeException("Failed to fetch repositories. HTTP " + response.statusCode());
-            }
-
-            JsonNode reposArray = mapper.readTree(response.body());
-            if (reposArray.isEmpty()) {
-                break;
-            }
-
-            for (JsonNode repo : reposArray) {
-                allRepos.add(repo);
-            }
-            page++;
         }
-        return allRepos;
+        return all;
     }
 
-    private HttpResponse<String> executeGet(String url, String token) throws Exception {
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(url))
-                .header("Authorization", "Bearer " + token)
-                .header("Accept", "application/vnd.github+json")
-                .header("X-GitHub-Api-Version", "2022-11-28")
-                .GET()
-                .build();
-
-        return httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+    private boolean isMeaningfulCommit(JsonNode node) {
+        String msg = node.path("commit").path("message").asText("");
+        return !msg.isBlank() && !IGNORE_COMMIT_PATTERN.matcher(msg.trim()).find();
     }
 
-    private boolean isMeaningfulCommit(JsonNode commitNode) {
-        String message = commitNode.path("commit").path("message").asText("");
-        if (message.isBlank()) return false;
-        return !IGNORE_COMMIT_PATTERN.matcher(message.trim()).find();
+    private Commit mapToDomainCommit(JsonNode node, String regex, String projectName) {
+        String message = node.path("commit").path("message").asText();
+        String date = node.path("commit").path("committer").path("date").asText();
+        return new Commit(node.path("sha").asText(), message, node.path("commit").path("author").path("name").asText("Unknown"),
+                projectName, extractTaskIds(message, regex), node.path("html_url").asText(), date);
     }
 
-    private Commit mapToDomainCommit(JsonNode commitNode, String regex, String projectName) {
-        String hash = commitNode.path("sha").asText();
-        String message = commitNode.path("commit").path("message").asText();
-        String author = commitNode.path("commit").path("author").path("name").asText("Unknown");
-        String url = commitNode.path("html_url").asText();
-
-        List<String> associatedTasks = extractTaskIdsFromMessage(message, regex);
-
-        return new Commit(hash, message, author, projectName, associatedTasks, url);
-    }
-
-    private List<String> extractTaskIdsFromMessage(String message, String regex) {
-        List<String> taskIds = new ArrayList<>();
+    private List<String> extractTaskIds(String message, String regex) {
+        List<String> ids = new ArrayList<>();
         if (message != null && regex != null) {
-            Pattern pattern = Pattern.compile(regex);
-            Matcher matcher = pattern.matcher(message);
-            while (matcher.find()) {
-                taskIds.add(matcher.group());
-            }
+            Matcher m = Pattern.compile(regex).matcher(message);
+            while (m.find()) ids.add(m.group());
         }
-        return taskIds;
+        return ids;
     }
 }
