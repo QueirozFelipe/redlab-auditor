@@ -15,10 +15,10 @@ public class ApiResponseExceptionHandler implements ResponseExceptionMapper<Runt
         String errorBody = response.readEntity(String.class);
 
         return switch (status) {
-            case 401, 403 -> new UnauthorizedException("Access denied by API. Verify your token.", errorBody);
-            case 404 -> new ResourceNotFoundException("Resource not found on the remote server.", errorBody);
-            case 419 -> new TooManyRequestsException("API could not handle that many requests. Try a lower rate limit.", errorBody);
-            default -> new ApiResponseException("API responded with error code " + status + ".", errorBody);
+            case 401, 403 -> new UnauthorizedException("Error code " + status + ". Access denied by API. Verify your token.", errorBody);
+            case 404 -> new ResourceNotFoundException("Error code " + status + ". Resource not found on the remote server.", errorBody);
+            case 419 -> new TooManyRequestsException("Error code " + status + ". API could not handle that many requests. Try a lower rate limit.", errorBody);
+            default -> new ApiResponseException("Error code " + status + ". ", errorBody);
         };
     }
 

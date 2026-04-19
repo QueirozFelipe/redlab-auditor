@@ -8,28 +8,45 @@ import javax.crypto.Cipher;
 import javax.crypto.CipherInputStream;
 import javax.crypto.CipherOutputStream;
 import javax.crypto.spec.SecretKeySpec;
-import java.io.*;
-import java.nio.file.*;
-import java.util.*;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.security.MessageDigest;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 
 @ApplicationScoped
 public class ProfileStorageService {
 
     private static final String FILE_NAME = "profiles.dat";
     private static final String ALGORITHM = "AES";
-    private static final byte[] KEY = "RedLabSecretKey!".getBytes();
 
     private Path getStoragePath() {
         return StorageUtils.getProfilesPath().resolve(FILE_NAME);
     }
 
+    private SecretKeySpec getMachineSpecificKey() throws Exception {
+        String rawKey = System.getProperty("user.name") +
+                System.getProperty("os.name") +
+                System.getProperty("user.home");
+
+        MessageDigest sha = MessageDigest.getInstance("SHA-256");
+        byte[] key = sha.digest(rawKey.getBytes(StandardCharsets.UTF_8));
+
+        return new SecretKeySpec(Arrays.copyOf(key, 16), ALGORITHM);
+    }
+
     public void saveProfiles(Map<String, Profile> profiles) {
-        Path path = getStoragePath();
         try {
             Cipher cipher = Cipher.getInstance(ALGORITHM);
-            cipher.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(KEY, ALGORITHM));
+            cipher.init(Cipher.ENCRYPT_MODE, getMachineSpecificKey());
 
-            try (FileOutputStream fos = new FileOutputStream(path.toFile());
+            try (FileOutputStream fos = new FileOutputStream(getStoragePath().toFile());
                  CipherOutputStream cos = new CipherOutputStream(fos, cipher);
                  ObjectOutputStream oos = new ObjectOutputStream(cos)) {
 
@@ -47,7 +64,7 @@ public class ProfileStorageService {
 
         try {
             Cipher cipher = Cipher.getInstance(ALGORITHM);
-            cipher.init(Cipher.DECRYPT_MODE, new SecretKeySpec(KEY, ALGORITHM));
+            cipher.init(Cipher.DECRYPT_MODE, getMachineSpecificKey());
 
             try (FileInputStream fis = new FileInputStream(path.toFile());
                  CipherInputStream cis = new CipherInputStream(fis, cipher);
@@ -56,7 +73,7 @@ public class ProfileStorageService {
                 return (Map<String, Profile>) ois.readObject();
             }
         } catch (Exception e) {
-            System.err.println("[WARN] Could not load profiles. The file might be corrupted or the key changed.");
+            System.err.println("[WARN] Could not load profiles. Security key mismatch for this environment.");
             return new HashMap<>();
         }
     }

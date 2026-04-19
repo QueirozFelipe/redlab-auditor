@@ -1,0 +1,50 @@
+name: Build and Release RedLab Native
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    name: Build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Set up GraalVM
+        uses: graalvm/setup-graalvm@v1
+        with:
+          java-version: '21'
+          distribution: 'graalvm'
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          native-image-job-reports: 'true'
+
+      - name: Install Windows Dependencies
+        if: matrix.os == 'windows-latest'
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Run Tests
+        run: ./mvnw test
+
+      - name: Build Native Binary
+        run: ./mvnw package -Pnative -DskipTests
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: redlab-${{ matrix.os }}
+          path: |
+            target/redlab-auditor-*-runner
+            target/*.exe

@@ -3,23 +3,26 @@ package com.redlab.auditor.infrastructure.util;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 
 public class StorageUtils {
 
-    private static final String PROFILES_DIR = "profiles";
-    private static final String REPORTS_DIR = "reports";
+    private static final String REDLAB_HIDDEN_DIR = ".redlab";
 
     public static Path getProfilesPath() {
-        return ensureDirectoryExists(Path.of(PROFILES_DIR));
+        String userHome = System.getProperty("user.home");
+        Path path = Paths.get(userHome, REDLAB_HIDDEN_DIR);
+        return ensureDirectoryExists(path);
     }
 
     public static Path getReportsPath() {
-        return ensureDirectoryExists(Path.of(REPORTS_DIR));
+        String currentWorkingDir = System.getProperty("user.dir");
+        return Paths.get(currentWorkingDir);
     }
 
     private static Path ensureDirectoryExists(Path path) {
         try {
-            if (!Files.exists(path)) {
+            if (Files.notExists(path)) {
                 Files.createDirectories(path);
             }
             return path;
