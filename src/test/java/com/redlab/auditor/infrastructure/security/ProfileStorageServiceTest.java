@@ -5,6 +5,7 @@ import com.redlab.auditor.domain.model.ProjectManagerType;
 import com.redlab.auditor.domain.model.SourceControlType;
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -34,6 +35,13 @@ class ProfileStorageServiceTest {
     void setUp() {
         originalHome = System.getProperty("user.home");
         System.setProperty("user.home", tempDir.toString());
+    }
+
+    @AfterEach
+    void tearDown() {
+        if (originalHome != null) {
+            System.setProperty("user.home", originalHome);
+        }
     }
 
     @Test
@@ -68,15 +76,18 @@ class ProfileStorageServiceTest {
 
     @Test
     void shouldHandleEncryptionFailureGracefully() throws IOException {
-        storageService.saveProfiles(Map.of("p1", mock(Profile.class)));
+        storageService.saveProfiles(Map.of("p1", new Profile(
+                "p1", ProjectManagerType.REDMINE, SourceControlType.GITLAB,
+                "http://loc", "tk", Set.of(), "http://sc", "tk", "gr", 10,
+                Set.of(), List.of(), List.of(), ""
+        )));
 
-        String originalUser = System.getProperty("user.name");
-        try {
-            System.setProperty("user.name", "another-user");
-            Map<String, Profile> result = storageService.loadProfiles();
-            assertTrue(result.isEmpty());
-        } finally {
-            System.setProperty("user.name", originalUser);
-        }
+        Path expectedFile = tempDir.resolve(".redlab").resolve("profiles.dat");
+        Files.write(expectedFile, "INVALID_CONTENT".getBytes());
+
+        Map<String, Profile> result = storageService.loadProfiles();
+
+        assertNotNull(result);
+        assertTrue(result.isEmpty(), "Should return an empty map when file is corrupted.");
     }
 }
