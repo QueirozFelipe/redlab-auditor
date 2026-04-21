@@ -1,5 +1,7 @@
 quarkus:
+  banner:
+    enabled: false
   log:
-    level: INFO
+    level: WARN
     console:
       format: "%d{yyyy-MM-dd HH:mm:ss,SSS} %-5p [%c{3.}] (%t) %s%e%n"

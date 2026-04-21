@@ -29,49 +29,51 @@ public class ProfileAddCommand implements Runnable {
         String name = form.askUniqueName("\nProfile Name", profiles.keySet());
 
         ProjectManagerType pmType = form.askEnum(
-                "Select Project Manager (1-Redmine, 2-Jira): ",
+                "\nSelect Project Manager (1-Redmine, 2-Jira): ",
                 ProjectManagerType::fromId
         );
         String pmName = pmType.getDisplayName();
+        String pmIdentifierLabel = (pmType == ProjectManagerType.REDMINE) ? "Trackers" : "IssueTypes";
 
-        String pmUrl = form.askUrl(pmName + " URL", null);
-        String pmToken = form.askRequired(pmName + " Token", null);
+        String pmUrl = form.askUrl("\n" + pmName + " URL", null);
+        String pmToken = form.askRequired("\n" + pmName + " Token", null);
         Set<Long> pmIssueTypes = form.parseSet(
-                pmName + " Trackers/IssueTypes (IDs, e.g., 11,13,17)",
+                "\n" + pmName + " " + pmIdentifierLabel + "(IDs, e.g., 11,13,17)",
                 null,
                 Long::parseLong
         );
 
         SourceControlType scType = form.askEnum(
-                "Select Source Control (1-GitLab, 2-Github): ",
+                "\nSelect Source Control (1-GitLab, 2-Github): ",
                 SourceControlType::fromId
         );
         String scName = scType.getDisplayName();
+        String scGroupLabel = (scType == SourceControlType.GITLAB) ? "Group ID" : "Organization/Owner";
 
-        String scUrl = form.askUrl(scName + " URL", null);
-        String scToken = form.askRequired(scName + " Token", null);
-        String scGroupId = form.askRequired("Group ID", null);
-        int scRateLimit = form.askInt("API Rate Limit", 10);
+        String scUrl = form.askUrl("\n" + scName + " URL", null);
+        String scToken = form.askRequired("\n" + scName + " Token", null);
+        String scGroupId = form.askRequired("\n" + scGroupLabel, null);
+        int scRateLimit = form.askInt("\nAPI Rate Limit", 10);
 
         Set<Long> projectsToIgnore = form.parseSet(
-                "Project IDs to Ignore (IDs, e.g., 11,13,17)",
+                "\nProject IDs to Ignore (IDs, e.g., 11,13,17)",
                 null,
                 Long::parseLong
         );
 
         List<String> sourceBranches = form.parseList(
-                "Source Branches (e.g., dev,develop)",
+                "\nSource Branches (e.g., dev,develop)",
                 null,
                 Function.identity()
         );
 
         List<String> targetBranches = form.parseList(
-                "Target Branches (e.g., main,master)",
+                "\nTarget Branches (e.g., main,master)",
                 null,
                 Function.identity()
         );
 
-        String taskRegex = form.askRegex("Commit Pattern Regex (e.g., #(\\d+))", null);
+        String taskRegex = form.askRegex("\nCommit Pattern Regex (e.g., #(\\d+))", null);
 
         Profile newProfile = new Profile(
                 name,

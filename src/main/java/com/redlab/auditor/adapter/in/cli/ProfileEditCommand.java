@@ -38,54 +38,56 @@ public class ProfileEditCommand implements Runnable {
         System.out.println("=== Editing Profile: " + profileName + " ===");
         System.out.println("(Press Enter to keep current value)");
 
-        System.out.println("\nProject Manager (1-Redmine, 2-Jira)");
-        ProjectManagerType pmType = form.askEnum(
-                "Current [" + p.pmType().getDisplayName() + "]: ",
+        ProjectManagerType pmType = form.askEnumWithDefault(
+                "\nProject Manager (1-Redmine, 2-Jira)",
+                p.pmType(),
                 ProjectManagerType::fromId
         );
 
         String pmName = pmType.getDisplayName();
+        String pmIdentifierLabel = (pmType == ProjectManagerType.REDMINE) ? "Trackers" : "IssueTypes";
 
-        String pmUrl = form.askUrl(pmName + " URL", p.projectManagerURL());
-        String pmToken = form.askToken(pmName + " Token", p.projectManagerToken());
+        String pmUrl = form.askUrl("\n" + pmName + " URL", p.projectManagerURL());
+        String pmToken = form.askToken("\n" + pmName + " Token", p.projectManagerToken());
         Set<Long> pmIssueTypes = form.parseSet(
-                pmName + " Trackers/IssueTypes",
+                "\n" + pmName + " " + pmIdentifierLabel,
                 form.toCommaString(p.projectManagerIssueTypes()),
                 Long::parseLong
         );
 
-        System.out.println("Source Control (1-GitLab, 2-Github)");
-        SourceControlType scType = form.askEnum(
-                "Current [" + p.scType().getDisplayName() + "]: ",
+        SourceControlType scType = form.askEnumWithDefault(
+                "\nSource Control (1-GitLab, 2-Github)",
+                p.scType(),
                 SourceControlType::fromId
         );
 
         String scName = scType.getDisplayName();
+        String scGroupLabel = (scType == SourceControlType.GITLAB) ? "Group ID" : "Organization/Owner";
 
-        String scUrl = form.askUrl(scName + " URL", p.sourceControlURL());
-        String scToken = form.askToken(scName + " Token", p.sourceControlToken());
-        String scGroupId = form.askRequired(scName + " Group ID", p.sourceControlGroupId());
-        int scRateLimit = form.askInt(scName + " Rate Limit", p.sourceControlRateLimit());
+        String scUrl = form.askUrl("\n" + scName + " URL", p.sourceControlURL());
+        String scToken = form.askToken("\n" + scName + " Token", p.sourceControlToken());
+        String scGroupId = form.askRequired("\n" + scName + " " + scGroupLabel, p.sourceControlGroupId());
+        int scRateLimit = form.askInt("\n" + scName + " Rate Limit", p.sourceControlRateLimit());
 
         Set<Long> projectsToIgnore = form.parseSet(
-                "Project IDs to Ignore",
+                "\nProject IDs to Ignore",
                 form.toCommaString(p.projectsToIgnore()),
                 Long::parseLong
         );
 
         List<String> sourceBranches = form.parseList(
-                "Source Branches",
+                "\nSource Branches",
                 form.toCommaString(p.sourceBranches()),
                 Function.identity()
         );
 
         List<String> targetBranches = form.parseList(
-                "Target Branches",
+                "\nTarget Branches",
                 form.toCommaString(p.targetBranches()),
                 Function.identity()
         );
 
-        String taskRegex = form.askRegex("Task Regex", p.taskRegex());
+        String taskRegex = form.askRegex("\nTask Regex", p.taskRegex());
 
         Profile updatedProfile = new Profile(
                 profileName,

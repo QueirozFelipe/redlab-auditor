@@ -3,6 +3,7 @@ package com.redlab.auditor.infrastructure.security;
 import com.redlab.auditor.domain.model.Profile;
 import com.redlab.auditor.infrastructure.util.StorageUtils;
 import jakarta.enterprise.context.ApplicationScoped;
+import org.eclipse.microprofile.config.ConfigProvider;
 
 import javax.crypto.Cipher;
 import javax.crypto.CipherInputStream;
@@ -31,9 +32,18 @@ public class ProfileStorageService {
     }
 
     private SecretKeySpec getMachineSpecificKey() throws Exception {
-        String rawKey = System.getProperty("user.name") +
-                System.getProperty("os.name") +
-                System.getProperty("user.home");
+        var config = ConfigProvider.getConfig();
+
+        String userName = config.getOptionalValue("user.name", String.class)
+                .orElse("default").trim().toLowerCase();
+
+        String osName = config.getOptionalValue("os.name", String.class)
+                .orElse("generic").trim().toLowerCase();
+
+        String userHome = config.getOptionalValue("user.home", String.class)
+                .orElse("home").trim().toLowerCase();
+
+        String rawKey = userName + osName + userHome;
 
         MessageDigest sha = MessageDigest.getInstance("SHA-256");
         byte[] key = sha.digest(rawKey.getBytes(StandardCharsets.UTF_8));

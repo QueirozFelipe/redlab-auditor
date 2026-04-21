@@ -31,7 +31,7 @@ public class ProfileFormUtils {
     public String askRequired(String label, String currentValue) {
         while (true) {
             String suffix = (currentValue != null && !currentValue.isBlank()) ? " [" + currentValue + "]" : "";
-            System.out.println(label + suffix + ": ");
+            System.out.print(label + suffix + ": ");
             String input = scanner.nextLine().trim();
 
             if (input.isEmpty() && currentValue != null) return currentValue;
@@ -55,7 +55,7 @@ public class ProfileFormUtils {
 
     public String askRegex(String label, String currentValue) {
         while (true) {
-            System.out.println(label + (currentValue != null ? " [" + currentValue + "]" : "") + ": ");
+            System.out.print(label + (currentValue != null ? " [" + currentValue + "]" : "") + ": ");
             String input = scanner.nextLine().trim();
             String val = input.isEmpty() ? currentValue : input;
 
@@ -72,13 +72,36 @@ public class ProfileFormUtils {
     public <T> T askEnum(String label, Function<Integer, T> resolver) {
         while (true) {
             try {
-                System.out.println(label);
+                System.out.print(label);
                 int option = Integer.parseInt(scanner.nextLine());
                 T result = resolver.apply(option);
                 if (result != null) return result;
                 System.out.println("[INVALID] Option not recognized.");
-            } catch (Exception e) {
+            } catch (NumberFormatException e) {
                 System.out.println("[INVALID] Please select a valid numeric option.");
+            } catch (Exception e) {
+                System.out.println("[INVALID] An error occurred. Please try again.");
+            }
+        }
+    }
+
+    public <T> T askEnumWithDefault(String label, T currentValue, Function<Integer, T> resolver) {
+        while (true) {
+            try {
+                String suffix = (currentValue != null) ? " [" + currentValue.toString() + "]" : "";
+                System.out.print(label + suffix + ": ");
+                String input = scanner.nextLine().trim();
+                if (input.isEmpty() && currentValue != null) {
+                    return currentValue;
+                }
+                int option = Integer.parseInt(input);
+                T result = resolver.apply(option);
+                if (result != null) return result;
+                System.out.println("[INVALID] Option not recognized.");
+            } catch (NumberFormatException e) {
+                System.out.println("[INVALID] Please select a valid numeric option or press Enter to keep current.");
+            } catch (Exception e) {
+                System.out.println("[INVALID] An error occurred. Please try again.");
             }
         }
     }
@@ -99,7 +122,7 @@ public class ProfileFormUtils {
 
         while (true) {
             String suffix = (currentValues != null && !currentValues.isEmpty()) ? " [" + currentValues + "]" : "";
-            System.out.println(label + suffix + ": ");
+            System.out.print(label + suffix + ": ");
 
             String input = scanner.nextLine().trim();
             String finalInput = input.isEmpty() ? currentValues : input;
@@ -122,7 +145,7 @@ public class ProfileFormUtils {
 
     public int askInt(String label, int defaultValue) {
         while (true) {
-            System.out.println(label + " [" + defaultValue + "]: ");
+            System.out.print(label + " [" + defaultValue + "]: ");
             String input = scanner.nextLine().trim();
             if (input.isEmpty()) return defaultValue;
             try {
@@ -137,7 +160,7 @@ public class ProfileFormUtils {
 
     public String askToken(String label, String currentToken) {
         String masked = mask(currentToken);
-        System.out.println(label + " [" + masked + "]: ");
+        System.out.print(label + " [" + masked + "]: ");
         String input = scanner.nextLine().trim();
         return input.isBlank() ? currentToken : input;
     }
