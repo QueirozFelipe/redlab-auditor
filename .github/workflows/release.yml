@@ -43,7 +43,9 @@ jobs:
         run: ./mvnw test
 
       - name: Build Native Binary
-        run: ./mvnw package -Pnative -DskipTests -Dapp.secret=${{ secrets.REDLAB_SECRET }}
+        run: ./mvnw package -Pnative -DskipTests "-Dapp.secret=$APP_SECRET"
+        env:
+          APP_SECRET: ${{ secrets.REDLAB_SECRET }}
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
