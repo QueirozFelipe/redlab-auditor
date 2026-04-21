@@ -3,21 +3,16 @@ package com.redlab.auditor.infrastructure.security;
 import com.redlab.auditor.domain.model.Profile;
 import com.redlab.auditor.infrastructure.util.StorageUtils;
 import jakarta.enterprise.context.ApplicationScoped;
-import org.eclipse.microprofile.config.ConfigProvider;
 
-import javax.crypto.Cipher;
-import javax.crypto.CipherInputStream;
-import javax.crypto.CipherOutputStream;
+import javax.crypto.*;
+import javax.crypto.spec.GCMParameterSpec;
+import javax.crypto.spec.PBEKeySpec;
 import javax.crypto.spec.SecretKeySpec;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.nio.charset.StandardCharsets;
+import java.io.*;
+import java.net.InetAddress;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.security.MessageDigest;
-import java.util.Arrays;
+import java.security.SecureRandom;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -25,45 +20,77 @@ import java.util.Map;
 public class ProfileStorageService {
 
     private static final String FILE_NAME = "profiles.dat";
+
     private static final String ALGORITHM = "AES";
+    private static final String TRANSFORMATION = "AES/GCM/NoPadding";
+
+    private static final int IV_SIZE = 12;
+    private static final int TAG_LENGTH = 128;
+
+    private static final byte[] SALT = "redlab-salt-v1".getBytes();
 
     private Path getStoragePath() {
         return StorageUtils.getProfilesPath().resolve(FILE_NAME);
     }
 
-    private SecretKeySpec getMachineSpecificKey() throws Exception {
-        var config = ConfigProvider.getConfig();
+    private SecretKey getMachineKey() throws Exception {
+        String fingerprint = buildMachineFingerprint();
 
-        String userName = config.getOptionalValue("user.name", String.class)
-                .orElse("default").trim().toLowerCase();
+        SecretKeyFactory factory = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256");
 
-        String osName = config.getOptionalValue("os.name", String.class)
-                .orElse("generic").trim().toLowerCase();
+        PBEKeySpec spec = new PBEKeySpec(
+                fingerprint.toCharArray(),
+                SALT,
+                65536,
+                128
+        );
 
-        String userHome = config.getOptionalValue("user.home", String.class)
-                .orElse("home").trim().toLowerCase();
+        byte[] keyBytes = factory.generateSecret(spec).getEncoded();
 
-        String rawKey = userName + osName + userHome;
+        return new SecretKeySpec(keyBytes, ALGORITHM);
+    }
 
-        MessageDigest sha = MessageDigest.getInstance("SHA-256");
-        byte[] key = sha.digest(rawKey.getBytes(StandardCharsets.UTF_8));
+    private String buildMachineFingerprint() {
+        try {
+            String os = System.getProperty("os.name", "");
+            String arch = System.getProperty("os.arch", "");
+            String home = System.getProperty("user.home", "");
+            String user = System.getProperty("user.name", "");
 
-        return new SecretKeySpec(Arrays.copyOf(key, 16), ALGORITHM);
+            String host = InetAddress.getLocalHost().getHostName();
+
+            return (os + arch + home + user + host).toLowerCase();
+
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to build machine fingerprint", e);
+        }
     }
 
     public void saveProfiles(Map<String, Profile> profiles) {
         try {
-            Cipher cipher = Cipher.getInstance(ALGORITHM);
-            cipher.init(Cipher.ENCRYPT_MODE, getMachineSpecificKey());
+            SecretKey key = getMachineKey();
+
+            Cipher cipher = Cipher.getInstance(TRANSFORMATION);
+
+            byte[] iv = new byte[IV_SIZE];
+            new SecureRandom().nextBytes(iv);
+
+            GCMParameterSpec spec = new GCMParameterSpec(TAG_LENGTH, iv);
+            cipher.init(Cipher.ENCRYPT_MODE, key, spec);
 
             try (FileOutputStream fos = new FileOutputStream(getStoragePath().toFile());
-                 CipherOutputStream cos = new CipherOutputStream(fos, cipher);
+                 DataOutputStream dos = new DataOutputStream(fos);
+                 CipherOutputStream cos = new CipherOutputStream(dos, cipher);
                  ObjectOutputStream oos = new ObjectOutputStream(cos)) {
+
+                dos.writeInt(iv.length);
+                dos.write(iv);
 
                 oos.writeObject(profiles);
             }
+
         } catch (Exception e) {
-            throw new RuntimeException("Error saving profiles with encryption: " + e.getMessage(), e);
+            throw new RuntimeException("Error saving profiles", e);
         }
     }
 
@@ -73,17 +100,27 @@ public class ProfileStorageService {
         if (!Files.exists(path)) return new HashMap<>();
 
         try {
-            Cipher cipher = Cipher.getInstance(ALGORITHM);
-            cipher.init(Cipher.DECRYPT_MODE, getMachineSpecificKey());
+            SecretKey key = getMachineKey();
 
             try (FileInputStream fis = new FileInputStream(path.toFile());
-                 CipherInputStream cis = new CipherInputStream(fis, cipher);
-                 ObjectInputStream ois = new ObjectInputStream(cis)) {
+                 DataInputStream dis = new DataInputStream(fis)) {
 
-                return (Map<String, Profile>) ois.readObject();
+                int ivLength = dis.readInt();
+                byte[] iv = new byte[ivLength];
+                dis.readFully(iv);
+
+                Cipher cipher = Cipher.getInstance(TRANSFORMATION);
+                cipher.init(Cipher.DECRYPT_MODE, key, new GCMParameterSpec(TAG_LENGTH, iv));
+
+                try (CipherInputStream cis = new CipherInputStream(dis, cipher);
+                     ObjectInputStream ois = new ObjectInputStream(cis)) {
+
+                    return (Map<String, Profile>) ois.readObject();
+                }
             }
+
         } catch (Exception e) {
-            System.err.println("[WARN] Could not load profiles. Security key mismatch for this environment.");
+            System.err.println("[WARN] Could not load profiles. Possibly different machine/environment.");
             return new HashMap<>();
         }
     }
