@@ -3,15 +3,17 @@ package com.redlab.auditor.infrastructure.security;
 import com.redlab.auditor.domain.model.Profile;
 import com.redlab.auditor.infrastructure.util.StorageUtils;
 import jakarta.enterprise.context.ApplicationScoped;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 
-import javax.crypto.*;
+import javax.crypto.Cipher;
+import javax.crypto.CipherInputStream;
+import javax.crypto.CipherOutputStream;
 import javax.crypto.spec.GCMParameterSpec;
-import javax.crypto.spec.PBEKeySpec;
 import javax.crypto.spec.SecretKeySpec;
 import java.io.*;
-import java.net.InetAddress;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.util.HashMap;
 import java.util.Map;
@@ -27,48 +29,22 @@ public class ProfileStorageService {
     private static final int IV_SIZE = 12;
     private static final int TAG_LENGTH = 128;
 
-    private static final byte[] SALT = "redlab-salt-v1".getBytes();
+    @ConfigProperty(name = "app.secret", defaultValue = "dev-env-secret")
+    private String secret;
 
     private Path getStoragePath() {
         return StorageUtils.getProfilesPath().resolve(FILE_NAME);
     }
 
-    private SecretKey getMachineKey() throws Exception {
-        String fingerprint = buildMachineFingerprint();
-
-        SecretKeyFactory factory = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256");
-
-        PBEKeySpec spec = new PBEKeySpec(
-                fingerprint.toCharArray(),
-                SALT,
-                65536,
-                128
-        );
-
-        byte[] keyBytes = factory.generateSecret(spec).getEncoded();
-
-        return new SecretKeySpec(keyBytes, ALGORITHM);
-    }
-
-    private String buildMachineFingerprint() {
-        try {
-            String os = System.getProperty("os.name", "");
-            String arch = System.getProperty("os.arch", "");
-            String home = System.getProperty("user.home", "");
-            String user = System.getProperty("user.name", "");
-
-            String host = InetAddress.getLocalHost().getHostName();
-
-            return (os + arch + home + user + host).toLowerCase();
-
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to build machine fingerprint", e);
-        }
+    private SecretKeySpec getAppKey() throws Exception {
+        MessageDigest sha = MessageDigest.getInstance("SHA-256");
+        byte[] key = sha.digest(secret.getBytes());
+        return new SecretKeySpec(key, 0, 16, ALGORITHM);
     }
 
     public void saveProfiles(Map<String, Profile> profiles) {
         try {
-            SecretKey key = getMachineKey();
+            SecretKeySpec key = getAppKey();
 
             Cipher cipher = Cipher.getInstance(TRANSFORMATION);
 
@@ -100,7 +76,7 @@ public class ProfileStorageService {
         if (!Files.exists(path)) return new HashMap<>();
 
         try {
-            SecretKey key = getMachineKey();
+            SecretKeySpec key = getAppKey();
 
             try (FileInputStream fis = new FileInputStream(path.toFile());
                  DataInputStream dis = new DataInputStream(fis)) {
@@ -120,7 +96,7 @@ public class ProfileStorageService {
             }
 
         } catch (Exception e) {
-            System.err.println("[WARN] Could not load profiles. Possibly different machine/environment.");
+            System.err.println("[WARN] Could not load profiles. File may be corrupted or incompatible.");
             return new HashMap<>();
         }
     }
