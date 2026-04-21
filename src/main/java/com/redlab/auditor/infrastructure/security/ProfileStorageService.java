@@ -6,8 +6,6 @@ import jakarta.enterprise.context.ApplicationScoped;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 import javax.crypto.Cipher;
-import javax.crypto.CipherInputStream;
-import javax.crypto.CipherOutputStream;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 import java.io.*;
@@ -29,7 +27,7 @@ public class ProfileStorageService {
     private static final int IV_SIZE = 12;
     private static final int TAG_LENGTH = 128;
 
-    @ConfigProperty(name = "app.secret", defaultValue = "dev-env-secret")
+    @ConfigProperty(name = "app.secret")
     private String secret;
 
     private Path getStoragePath() {
@@ -39,31 +37,41 @@ public class ProfileStorageService {
     private SecretKeySpec getAppKey() throws Exception {
         MessageDigest sha = MessageDigest.getInstance("SHA-256");
         byte[] key = sha.digest(secret.getBytes());
+        System.out.println("[DEBUG] Secret used: '" + secret + "'");
+        System.out.println("[DEBUG] Key hash (first 4 bytes): " + key[0] + "," + key[1] + "," + key[2] + "," + key[3]);
         return new SecretKeySpec(key, 0, 16, ALGORITHM);
     }
 
     public void saveProfiles(Map<String, Profile> profiles) {
         try {
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            try (ObjectOutputStream oos = new ObjectOutputStream(baos)) {
+                oos.writeObject(profiles);
+            }
+            byte[] plaintext = baos.toByteArray();
+            System.out.println("[DEBUG] saveProfiles - plaintext size: " + plaintext.length + " bytes");
+
             SecretKeySpec key = getAppKey();
-
-            Cipher cipher = Cipher.getInstance(TRANSFORMATION);
-
             byte[] iv = new byte[IV_SIZE];
             new SecureRandom().nextBytes(iv);
 
-            GCMParameterSpec spec = new GCMParameterSpec(TAG_LENGTH, iv);
-            cipher.init(Cipher.ENCRYPT_MODE, key, spec);
+            Cipher cipher = Cipher.getInstance(TRANSFORMATION);
+            cipher.init(Cipher.ENCRYPT_MODE, key, new GCMParameterSpec(TAG_LENGTH, iv));
+            byte[] ciphertext = cipher.doFinal(plaintext);
+            System.out.println("[DEBUG] saveProfiles - ciphertext size: " + ciphertext.length + " bytes");
 
-            try (FileOutputStream fos = new FileOutputStream(getStoragePath().toFile());
-                 DataOutputStream dos = new DataOutputStream(fos);
-                 CipherOutputStream cos = new CipherOutputStream(dos, cipher);
-                 ObjectOutputStream oos = new ObjectOutputStream(cos)) {
+            Path storagePath = getStoragePath();
+            System.out.println("[DEBUG] saveProfiles - writing to: " + storagePath.toAbsolutePath());
 
+            try (FileOutputStream fos = new FileOutputStream(storagePath.toFile());
+                 DataOutputStream dos = new DataOutputStream(fos)) {
                 dos.writeInt(iv.length);
                 dos.write(iv);
-
-                oos.writeObject(profiles);
+                dos.writeInt(ciphertext.length);
+                dos.write(ciphertext);
             }
+
+            System.out.println("[DEBUG] saveProfiles - file size after write: " + Files.size(storagePath) + " bytes");
 
         } catch (Exception e) {
             throw new RuntimeException("Error saving profiles", e);
@@ -73,30 +81,51 @@ public class ProfileStorageService {
     @SuppressWarnings("unchecked")
     public Map<String, Profile> loadProfiles() {
         Path path = getStoragePath();
-        if (!Files.exists(path)) return new HashMap<>();
+        System.out.println("[DEBUG] loadProfiles - looking for file: " + path.toAbsolutePath());
+
+        if (!Files.exists(path)) {
+            System.out.println("[DEBUG] loadProfiles - file not found, returning empty map");
+            return new HashMap<>();
+        }
 
         try {
+            System.out.println("[DEBUG] loadProfiles - file size: " + Files.size(path) + " bytes");
+
             SecretKeySpec key = getAppKey();
+
+            byte[] iv;
+            byte[] ciphertext;
 
             try (FileInputStream fis = new FileInputStream(path.toFile());
                  DataInputStream dis = new DataInputStream(fis)) {
-
                 int ivLength = dis.readInt();
-                byte[] iv = new byte[ivLength];
+                System.out.println("[DEBUG] loadProfiles - IV length read: " + ivLength);
+                iv = new byte[ivLength];
                 dis.readFully(iv);
 
-                Cipher cipher = Cipher.getInstance(TRANSFORMATION);
-                cipher.init(Cipher.DECRYPT_MODE, key, new GCMParameterSpec(TAG_LENGTH, iv));
+                int ciphertextLength = dis.readInt();
+                System.out.println("[DEBUG] loadProfiles - ciphertext length read: " + ciphertextLength);
+                ciphertext = new byte[ciphertextLength];
+                dis.readFully(ciphertext);
+            }
 
-                try (CipherInputStream cis = new CipherInputStream(dis, cipher);
-                     ObjectInputStream ois = new ObjectInputStream(cis)) {
+            Cipher cipher = Cipher.getInstance(TRANSFORMATION);
+            cipher.init(Cipher.DECRYPT_MODE, key, new GCMParameterSpec(TAG_LENGTH, iv));
+            byte[] plaintext = cipher.doFinal(ciphertext);
+            System.out.println("[DEBUG] loadProfiles - decryption successful, plaintext size: " + plaintext.length + " bytes");
 
-                    return (Map<String, Profile>) ois.readObject();
-                }
+            try (ObjectInputStream ois = new ObjectInputStream(new ByteArrayInputStream(plaintext))) {
+                Map<String, Profile> profiles = (Map<String, Profile>) ois.readObject();
+                System.out.println("[DEBUG] loadProfiles - profiles loaded: " + profiles.keySet());
+                return profiles;
             }
 
         } catch (Exception e) {
             System.err.println("[WARN] Could not load profiles. File may be corrupted or incompatible.");
+            System.err.println("[DEBUG] loadProfiles - exception: " + e.getClass().getName() + ": " + e.getMessage());
+            if (e.getCause() != null) {
+                System.err.println("[DEBUG] loadProfiles - cause: " + e.getCause().getClass().getName() + ": " + e.getCause().getMessage());
+            }
             return new HashMap<>();
         }
     }
