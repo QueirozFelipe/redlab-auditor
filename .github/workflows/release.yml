@@ -45,7 +45,7 @@ jobs:
       - name: Build Native Binary
         run: ./mvnw package -Pnative -DskipTests
         env:
-          QUARKUS_NATIVE_ADDITIONAL_BUILD_ARGS_APPEND: "-Dapp.secret=${{ secrets.REDLAB_SECRET }}"
+          QUARKUS_NATIVE_ADDITIONAL_BUILD_ARGS_APPEND: "-J-Dapp.secret=${{ secrets.REDLAB_SECRET }}"
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
