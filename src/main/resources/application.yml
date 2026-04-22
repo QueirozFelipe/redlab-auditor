@@ -1,6 +1,9 @@
 quarkus:
   banner:
     enabled: false
+  native:
+    resources:
+      includes: META-INF/resources/redlab-logo.png
   log:
     level: WARN
     console:
