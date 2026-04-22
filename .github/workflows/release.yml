@@ -42,10 +42,12 @@ jobs:
       - name: Run Tests
         run: ./mvnw test
 
+      - name: Inject Secret
+        run: echo "app.secret=${{ secrets.REDLAB_SECRET }}" >> src/main/resources/application.properties
+        shell: bash
+
       - name: Build Native Binary
         run: ./mvnw package -Pnative -DskipTests
-        env:
-          QUARKUS_NATIVE_ADDITIONAL_BUILD_ARGS_APPEND: "-J-Dapp.secret=${{ secrets.REDLAB_SECRET }}"
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
