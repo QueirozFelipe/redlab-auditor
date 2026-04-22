@@ -43,7 +43,7 @@ jobs:
         run: ./mvnw test
 
       - name: Build Native Binary
-        run: ./mvnw package -Pnative -DskipTests "-Dquarkus.native.additional-build-args-append=-Dapp.secret=$env:APP_SECRET"
+        run: ./mvnw package -Pnative -DskipTests
         env:
           APP_SECRET: ${{ secrets.REDLAB_SECRET }}
 
