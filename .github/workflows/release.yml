@@ -11,22 +11,20 @@ jobs:
   build:
     name: Build on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+    container:
+      image: ${{ matrix.os == 'ubuntu-latest' && 'quay.io/quarkus/ubi-quarkus-mandrel-builder-image:jdk-21' || '' }}
+      options: --user root
+
     strategy:
       matrix:
-        os: [ubuntu-22.04, windows-latest, macos-latest]
+        os: [ubuntu-latest, windows-latest, macos-latest]
 
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Set up JDK 21
-        uses: actions/setup-java@v4
-        with:
-          java-version: '21'
-          distribution: 'temurin'
-          cache: 'maven'
-
-      - name: Set up GraalVM
+      - name: Set up GraalVM (Non-Linux)
+        if: matrix.os != 'ubuntu-latest'
         uses: graalvm/setup-graalvm@v1
         with:
           java-version: '21'
