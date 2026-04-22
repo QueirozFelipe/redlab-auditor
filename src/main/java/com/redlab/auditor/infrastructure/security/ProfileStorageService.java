@@ -1,14 +1,20 @@
 package com.redlab.auditor.infrastructure.security;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.redlab.auditor.domain.model.Profile;
 import com.redlab.auditor.infrastructure.util.StorageUtils;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 import javax.crypto.Cipher;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
-import java.io.*;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.MessageDigest;
@@ -30,6 +36,9 @@ public class ProfileStorageService {
     @ConfigProperty(name = "app.secret")
     private String secret;
 
+    @Inject
+    ObjectMapper mapper;
+
     private Path getStoragePath() {
         return StorageUtils.getProfilesPath().resolve(FILE_NAME);
     }
@@ -44,11 +53,7 @@ public class ProfileStorageService {
 
     public void saveProfiles(Map<String, Profile> profiles) {
         try {
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            try (ObjectOutputStream oos = new ObjectOutputStream(baos)) {
-                oos.writeObject(profiles);
-            }
-            byte[] plaintext = baos.toByteArray();
+            byte[] plaintext = mapper.writeValueAsBytes(profiles);
             System.out.println("[DEBUG] saveProfiles - plaintext size: " + plaintext.length + " bytes");
 
             SecretKeySpec key = getAppKey();
@@ -114,11 +119,9 @@ public class ProfileStorageService {
             byte[] plaintext = cipher.doFinal(ciphertext);
             System.out.println("[DEBUG] loadProfiles - decryption successful, plaintext size: " + plaintext.length + " bytes");
 
-            try (ObjectInputStream ois = new ObjectInputStream(new ByteArrayInputStream(plaintext))) {
-                Map<String, Profile> profiles = (Map<String, Profile>) ois.readObject();
-                System.out.println("[DEBUG] loadProfiles - profiles loaded: " + profiles.keySet());
-                return profiles;
-            }
+            Map<String, Profile> profiles = mapper.readValue(plaintext, new TypeReference<Map<String, Profile>>() {});
+            System.out.println("[DEBUG] loadProfiles - profiles loaded: " + profiles.keySet());
+            return profiles;
 
         } catch (Exception e) {
             System.err.println("[WARN] Could not load profiles. File may be corrupted or incompatible.");
