@@ -142,11 +142,12 @@ public class GitHubAdapter implements SourceControlPort {
         while (true) {
             try {
                 List<JsonNode> repos = isOrg
-                        ? client.getOrgRepos(owner, 100, page++, token, GITHUB_API_VERSION)
-                        : client.getUserRepos(owner, 100, page++, token, GITHUB_API_VERSION);
+                        ? client.getOrgRepos(owner, 100, page, token, GITHUB_API_VERSION)
+                        : client.getUserRepos(owner, 100, page, token, GITHUB_API_VERSION);
 
                 if (repos.isEmpty()) break;
                 all.addAll(repos);
+                page++;
             } catch (ResourceNotFoundException e) {
                 if (isOrg && page == 1) {
                     isOrg = false;
