@@ -2,7 +2,8 @@ name: Build and Release RedLab Native
 
 on:
   push:
-    branches: [ main ]
+    tags:
+      - 'v*'
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -46,10 +47,55 @@ jobs:
       - name: Build Native Binary
         run: ./mvnw package -Pnative -DskipTests
 
-      - name: Upload Artifact
+      - name: Prepare Artifacts for Distribution
+        shell: bash
+        run: |
+          mkdir -p dist
+          cp docs/README_DIST.txt dist/README.txt
+          
+          if [ "${{ matrix.os }}" = "windows-latest" ]; then
+            cp target/*.exe dist/redlab.exe
+            cp scripts/install.ps1 dist/
+            cd dist && zip ../redlab-windows.zip redlab.exe install.ps1 README.txt
+          elif [ "${{ matrix.os }}" = "macos-latest" ]; then
+            cp target/redlab-auditor-*-runner dist/redlab
+            cp scripts/install.sh dist/
+            cd dist && tar -czvf ../redlab-macos.tar.gz redlab install.sh README.txt
+          else
+            cp target/redlab-auditor-*-runner dist/redlab
+            cp scripts/install.sh dist/
+            cd dist && tar -czvf ../redlab-linux.tar.gz redlab install.sh README.txt
+          fi
+
+      - name: Upload Intermediate Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: redlab-${{ matrix.os }}
-          path: |
-            target/redlab-auditor-*-runner
-            target/*.exe
+          name: bin-${{ matrix.os }}
+          path: redlab-*.*
+
+  publish:
+    name: Publish GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: all-bins
+          pattern: bin-*
+          merge-multiple: true
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            all-bins/redlab-windows.zip
+            all-bins/redlab-macos.tar.gz
+            all-bins/redlab-linux.tar.gz
+          body: "Official native binaries for RedLab Auditor ${{ github.ref_name }}. Includes installation scripts for each OS."
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
