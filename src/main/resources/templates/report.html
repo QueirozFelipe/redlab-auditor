@@ -126,6 +126,10 @@
         .footer-content { display: flex; justify-content: space-between; align-items: flex-start; max-width: 1400px; margin: 0 auto; }
         .footer-col h4 { color: white; margin-bottom: 10px; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px; }
         .footer-bottom { text-align: center; margin-top: 2rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.1); }
+        .footer-bottom p { margin: 0; }
+        .footer-bottom a { color: #3498db; text-decoration: underline; transition: opacity 0.2s; }
+        .footer-bottom a:hover { opacity: 0.8; }
+        .footer-bottom .license-text { font-size: 0.85em; margin-top: 8px; opacity: 0.8; font-weight: 400; }
         .footer-tag { background: rgba(255,255,255,0.1); padding: 2px 8px; border-radius: 4px; color: white; font-family: monospace; }
     </style>
 </head>
@@ -433,7 +437,10 @@
         </div>
     </div>
     <div class="footer-bottom">
-        &copy; 2026 RedLab Auditor. Created by Felipe Queiroz. All rights reserved.
+        <p>&copy; 2026 RedLab Auditor. Created by Felipe Queiroz.</p>
+        <p class="license-text">
+            Licensed under the <a href="http://www.apache.org/licenses/LICENSE-2.0" target="_blank">Apache License 2.0</a>
+        </p>
     </div>
 </footer>
 
