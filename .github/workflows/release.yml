@@ -56,7 +56,7 @@ jobs:
           if [ "${{ matrix.os }}" = "windows-latest" ]; then
             cp target/*.exe dist/redlab.exe
             cp scripts/install.ps1 dist/
-            cd dist && zip ../redlab-windows.zip redlab.exe install.ps1 README.txt
+            cd dist && 7z a ../redlab-windows.zip redlab.exe install.ps1 README.txt
           elif [ "${{ matrix.os }}" = "macos-latest" ]; then
             cp target/redlab-auditor-*-runner dist/redlab
             cp scripts/install.sh dist/
